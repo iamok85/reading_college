@@ -54,6 +54,9 @@ class Chat extends Component
         $this->validate([
             'queuedFiles' => ['array', 'max:5'],
             'queuedFiles.*' => ['file', 'max:20480', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,application/pdf'],
+        ], [
+            'queuedFiles.*.max' => 'Each attachment must be 20 MB or smaller.',
+            'queuedFiles.*.mimetypes' => 'Attachments must be images or PDFs.',
         ]);
 
         foreach ($this->queuedFiles as $file) {
@@ -111,6 +114,11 @@ class Chat extends Component
             'images.*' => ['file', 'max:20480', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif'],
             'pdfs' => ['array'],
             'pdfs.*' => ['file', 'max:20480', 'mimes:pdf'],
+        ], [
+            'images.*.max' => 'Each image must be 20 MB or smaller.',
+            'images.*.mimetypes' => 'Images must be JPG, PNG, WEBP, GIF, HEIC, or HEIF.',
+            'pdfs.*.max' => 'Each PDF must be 20 MB or smaller.',
+            'pdfs.*.mimes' => 'PDFs must be a valid PDF file.',
         ]);
 
         if ((!empty($this->images) || !empty($this->pdfs)) && $this->ocrPreview === null) {

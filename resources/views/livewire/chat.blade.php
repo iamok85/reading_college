@@ -4,7 +4,7 @@
         <!-- Welcome + Chat Box -->
         <div class="text-center pt-6">
             <p class="text-lg pb-4">
-                Enpower your expressions with wings of creativity.
+                Empower your expressions with wings of creativity.
             </p>
         </div>
 
@@ -113,7 +113,16 @@
             @error('queuedFiles')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
             @enderror
+            @error('queuedFiles.*')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
             @error('images')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+            @error('images.*')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+            @error('pdfs.*')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
             @enderror
             @error('input')

@@ -145,7 +145,7 @@
                     Save as PDF
                 </button>
             </div>
-            <div wire:loading wire:target="chat" class="mt-3 flex items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm">
+            <div wire:loading wire:target="chat" class="mt-3 mx-auto flex w-full items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 text-center shadow-sm">
                 <svg class="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
@@ -153,7 +153,7 @@
                 <span>Waiting for response…</span>
             </div>
             @if ($thinking)
-                <div class="mt-3 flex items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm">
+                <div class="mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm">
                     <svg class="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>

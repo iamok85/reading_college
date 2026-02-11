@@ -1,8 +1,16 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Reading College Demo
-        </h2>
+        <div class="flex flex-wrap items-center gap-6 text-sm font-semibold text-gray-700">
+            <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Dashboard') }}
+            </a>
+            <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Previous Essays') }}
+            </a>
+            <span class="text-gray-900 underline">
+                {{ __('Demo') }}
+            </span>
+        </div>
     </x-slot>
 
     <div class="py-12">

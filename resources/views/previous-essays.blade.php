@@ -1,17 +1,17 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Previous Essays
-        </h2>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-700">
+            <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Dashboard') }}
+            </a>
+            <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Previous Essays') }}
+            </a>
+        </div>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="mb-4">
-                <a href="{{ route('dashboard') }}" class="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-                    &larr; Back to Dashboard
-                </a>
-            </div>
             <div class="bg-white shadow-sm rounded-lg p-6">
                 @if ($essays->isEmpty())
                     <p class="text-sm text-gray-600">No submissions yet.</p>

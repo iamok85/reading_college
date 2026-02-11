@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use App\Models\Contact;
 use App\Http\Controllers\Auth\GoogleAuthController;
@@ -34,18 +35,20 @@ Route::post('/contact', function (Illuminate\Http\Request $request) {
     return back()->with('status', 'Thanks! We received your message.');
 })->name('contact.store');
 Route::get('/demo', function () {
+    $email = config('reading_college.demo_user_email');
+    $name = config('reading_college.demo_user_name');
     $user = User::firstOrCreate(
-        ['email' => 'demo@readingcollege.edu'],
+        ['email' => $email],
         [
-            'name' => 'demouser',
-            'password' => 'demo1234',
+            'name' => $name,
+            'password' => Hash::make('demo1234'),
             'email_verified_at' => now(),
         ]
     );
 
     Auth::login($user);
 
-    return view('demo');
+    return redirect()->route('dashboard');
 })->name('demo');
 
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');

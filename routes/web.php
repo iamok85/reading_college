@@ -11,6 +11,9 @@ use App\Models\Child;
 use App\Models\Contact;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Support\Recaptcha;
+use App\Neuron\Events\RetrieveReadingRecommendations;
+use App\Neuron\Nodes\ReadingRecommendationsNode;
+use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
     return view('welcome');
@@ -70,6 +73,12 @@ Route::middleware([
             return null;
         }
 
+        $requestedChildId = (int) $request->query('child_id', 0);
+        if ($requestedChildId && $user->children()->whereKey($requestedChildId)->exists()) {
+            $request->session()->put('selected_child_id', $requestedChildId);
+            return $requestedChildId;
+        }
+
         $selected = (int) ($request->session()->get('selected_child_id') ?? 0);
         if ($selected && $user->children()->whereKey($selected)->exists()) {
             return $selected;
@@ -83,8 +92,12 @@ Route::middleware([
         return $firstChildId;
     };
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
+    Route::get('/dashboard', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+
+        return view('dashboard', [
+            'selectedChildId' => $childId,
+        ]);
     })->name('dashboard');
 
     Route::get('/previous-essays', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
@@ -136,6 +149,7 @@ Route::middleware([
 
         return view('previous-essays', [
             'essays' => $essays,
+            'selectedChildId' => $childId,
         ]);
     })->name('previous-essays');
 
@@ -191,6 +205,26 @@ Route::middleware([
         return back();
     })->name('children.store');
 
+    Route::put('/children/{child}', function (Illuminate\Http\Request $request, Child $child) {
+        $data = $request->validate([
+            'child_name' => ['required', 'string', 'max:255'],
+            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_gender' => ['required', 'string', 'max:50'],
+        ]);
+
+        if ($child->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $child->update([
+            'name' => $data['child_name'],
+            'age' => $data['child_age'],
+            'gender' => $data['child_gender'],
+        ]);
+
+        return back();
+    })->name('children.update');
+
     Route::post('/children/select', function (Illuminate\Http\Request $request) {
         $data = $request->validate([
             'child_id' => ['required', 'integer'],
@@ -207,236 +241,93 @@ Route::middleware([
 
     Route::get('/reading-recommendations', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
-        $child = $childId ? $request->user()?->children()->whereKey($childId)->first() : null;
+        $child = $childId
+            ? Child::where('user_id', auth()->id())->whereKey($childId)->first()
+            : null;
         $essays = DB::table('essay_submissions')
             ->where('user_id', auth()->id())
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
             ->orderByDesc('uploaded_at')
             ->get(['ocr_text', 'response_text', 'uploaded_at']);
 
+        $latestSubmissionAt = $essays->max('uploaded_at');
+        $essayCount = $essays->count();
+        $cached = DB::table('reading_recommendations')
+            ->where('user_id', auth()->id())
+            ->where('child_id', $childId)
+            ->first();
+
+        if ($cached && $cached->essay_count === $essayCount && $cached->last_submission_at === $latestSubmissionAt) {
+            $items = json_decode((string) $cached->items, true) ?: [];
+            return view('reading-recommendations', [
+                'child' => $child,
+                'essayCount' => $essayCount,
+                'recommendations' => $items,
+                'topics' => [],
+                'ageBand' => null,
+                'selectedChildId' => $childId,
+            ]);
+        }
+
         $text = $essays
             ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
             ->filter()
             ->implode("\n\n");
-        $haystack = Str::lower($text);
+        $recommendationLinks = [];
+        if (trim($text) !== '') {
+            $wordCount = str_word_count(strip_tags($text));
+            $targetWords = max(60, min(200, $wordCount ?: 80));
 
-        $topics = [
-            'space' => ['space', 'planet', 'moon', 'star', 'galaxy', 'astronaut'],
-            'animals' => ['animal', 'pet', 'dog', 'cat', 'zoo', 'wildlife'],
-            'nature' => ['forest', 'tree', 'mountain', 'river', 'nature', 'garden'],
-            'ocean' => ['ocean', 'sea', 'beach', 'fish', 'whale', 'shark'],
-            'sports' => ['sport', 'soccer', 'football', 'basketball', 'tennis', 'game'],
-            'friendship' => ['friend', 'friendship', 'kindness', 'share', 'help'],
-            'family' => ['family', 'mother', 'father', 'sister', 'brother', 'home'],
-            'school' => ['school', 'teacher', 'class', 'homework', 'lesson'],
-            'adventure' => ['adventure', 'journey', 'explore', 'discover', 'travel'],
-            'fantasy' => ['magic', 'dragon', 'wizard', 'fairy', 'kingdom'],
-            'history' => ['history', 'ancient', 'king', 'queen', 'castle', 'war'],
-            'science' => ['science', 'experiment', 'robot', 'invention', 'energy'],
-        ];
+            $event = new RetrieveReadingRecommendations(
+                essayText: $text,
+                targetWords: $targetWords,
+                childName: $child?->name,
+                childAge: $child?->age,
+                childGender: $child?->gender
+            );
 
-        $catalog = [
-            'space' => [
-                'Space Explorer: A Kid’s Guide to the Cosmos',
-                'The Little Astronaut',
-                'Stars, Planets, and Beyond',
-            ],
-            'animals' => [
-                'Wildlife Wonders',
-                'Amazing Animal Facts for Kids',
-                'My First Pet Care Guide',
-            ],
-            'nature' => [
-                'Forests and Mountains',
-                'Rivers, Rain, and Weather',
-                'Nature Adventures for Kids',
-            ],
-            'ocean' => [
-                'Ocean Deep: Life Underwater',
-                'Sea Creatures and Coral Reefs',
-                'A Day at the Beach',
-            ],
-            'sports' => [
-                'Teamwork on the Field',
-                'The Big Game: A Sports Story',
-                'Practice Makes Progress',
-            ],
-            'friendship' => [
-                'The Kind Friend',
-                'Sharing and Caring',
-                'Friends Who Help',
-            ],
-            'family' => [
-                'My Family, My Home',
-                'Stories We Share',
-                'A Day With My Family',
-            ],
-            'school' => [
-                'My First School Day',
-                'Learning Is Fun',
-                'Classroom Adventures',
-            ],
-            'adventure' => [
-                'The Great Adventure Map',
-                'Journey to the Hidden Island',
-                'Explorers in the Wild',
-            ],
-            'fantasy' => [
-                'The Magic Garden',
-                'Dragons and Brave Knights',
-                'The Secret Wizard School',
-            ],
-            'history' => [
-                'Castles and Kings',
-                'Tales From the Past',
-                'History for Young Readers',
-            ],
-            'science' => [
-                'Easy Experiments for Kids',
-                'Robots and Inventions',
-                'Science Adventures',
-            ],
-        ];
+            $state = new WorkflowState();
+            (new ReadingRecommendationsNode())($event, $state);
 
-        $age = $child?->age;
-        $gender = Str::lower((string) ($child?->gender ?? ''));
-        $ageBand = match (true) {
-            $age !== null && $age <= 7 => 'early',
-            $age !== null && $age <= 10 => 'middle',
-            $age !== null && $age <= 13 => 'upper',
-            default => 'teen',
-        };
-
-        $agePicks = [
-            'early' => [
-                'Early Readers: Short Stories for Young Kids',
-                'Big Picture Books: Learning Through Stories',
-                'Fun Rhymes and Word Play',
-            ],
-            'middle' => [
-                'Chapter Starters: Short Chapter Books',
-                'Mystery Club for Young Readers',
-                'Adventure Tales for Growing Readers',
-            ],
-            'upper' => [
-                'Middle Grade Adventures',
-                'Science and History for Curious Kids',
-                'Mystery and Problem Solving Stories',
-            ],
-            'teen' => [
-                'Young Adult Adventures',
-                'Inspiring Biographies for Teens',
-                'Classic Stories for Advanced Readers',
-            ],
-        ];
-
-        $genderPicks = [
-            'female' => ['Stories with brave girls and role models'],
-            'male' => ['Stories with kind, thoughtful boys and role models'],
-            'non-binary' => ['Stories with diverse and inclusive characters'],
-            'prefer-not-to-say' => ['Stories with diverse and inclusive characters'],
-        ];
-
-        $matchedTopics = [];
-        foreach ($topics as $topic => $keywords) {
-            foreach ($keywords as $keyword) {
-                if (Str::contains($haystack, $keyword)) {
-                    $matchedTopics[] = $topic;
-                    break;
+            $raw = $state->get('reading_recommendations');
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded) && isset($decoded['items']) && is_array($decoded['items'])) {
+                    $recommendationLinks = array_map(function (array $item): array {
+                        return [
+                            'title' => (string) ($item['title'] ?? ''),
+                            'type' => (string) ($item['type'] ?? 'Book'),
+                            'paragraph' => (string) ($item['paragraph'] ?? ''),
+                        ];
+                    }, $decoded['items']);
                 }
             }
         }
 
-        if (empty($matchedTopics)) {
-            $matchedTopics = ['friendship', 'adventure', 'science'];
+        if (!empty($recommendationLinks)) {
+            DB::table('reading_recommendations')
+                ->updateOrInsert(
+                    [
+                        'user_id' => auth()->id(),
+                        'child_id' => $childId,
+                    ],
+                    [
+                        'essay_count' => $essayCount,
+                        'last_submission_at' => $latestSubmissionAt,
+                        'items' => json_encode($recommendationLinks),
+                        'updated_at' => now(),
+                        'created_at' => $cached?->created_at ?? now(),
+                    ]
+                );
         }
-
-        $recommendations = [];
-        foreach ($matchedTopics as $topic) {
-            foreach ($catalog[$topic] as $title) {
-                $recommendations[] = $title;
-            }
-        }
-
-        foreach ($agePicks[$ageBand] ?? [] as $title) {
-            $recommendations[] = $title;
-        }
-
-        foreach ($genderPicks[$gender] ?? ['Stories with diverse and inclusive characters'] as $title) {
-            $recommendations[] = $title;
-        }
-
-        $recommendations = array_values(array_unique($recommendations));
-        $recommendationLinks = array_map(function (string $title): array {
-            return [
-                'title' => $title,
-                'type' => 'Reading',
-                'url' => 'https://www.google.com/search?q=' . urlencode($title . ' book'),
-            ];
-        }, $recommendations);
-
-        $movieCatalog = [
-            'space' => ['Space Explorers (Family)', 'Journey to the Moon (Animated)'],
-            'animals' => ['Wildlife Rescue (Family)', 'The Jungle Friends (Animated)'],
-            'nature' => ['Forest Adventures (Family)', 'Mountains & Rivers (Documentary)'],
-            'ocean' => ['Ocean Wonders (Family)', 'Deep Sea Friends (Animated)'],
-            'sports' => ['Teamwork Wins (Family)', 'The Big Match (Family)'],
-            'friendship' => ['Best Friends Forever (Family)', 'The Kindness Club (Family)'],
-            'family' => ['My Family Story (Family)', 'Home Sweet Home (Family)'],
-            'school' => ['School Days (Family)', 'The New Class (Family)'],
-            'adventure' => ['The Great Adventure (Family)', 'Treasure Island Journey (Family)'],
-            'fantasy' => ['The Magic Kingdom (Family)', 'Dragons and Dreams (Family)'],
-            'history' => ['Time Travelers (Family)', 'Castles and Crowns (Family)'],
-            'science' => ['Robots & Inventions (Family)', 'The Science Quest (Family)'],
-        ];
-
-        $ageMoviePicks = [
-            'early' => ['Short Animated Stories (Kids)', 'Sing-Along Movie (Kids)'],
-            'middle' => ['Adventure Animations (Kids)', 'Family Comedy (Kids)'],
-            'upper' => ['Family Adventure (Kids)', 'Science Documentary (Kids)'],
-            'teen' => ['Teen Adventure (Family)', 'Inspiring True Stories (Teen)'],
-        ];
-
-        $genderMoviePicks = [
-            'female' => ['Stories with brave girls (Family)'],
-            'male' => ['Stories with kind boys (Family)'],
-            'non-binary' => ['Inclusive stories with diverse heroes (Family)'],
-            'prefer-not-to-say' => ['Inclusive stories with diverse heroes (Family)'],
-        ];
-
-        $movieRecommendations = [];
-        foreach ($matchedTopics as $topic) {
-            foreach ($movieCatalog[$topic] ?? [] as $title) {
-                $movieRecommendations[] = $title;
-            }
-        }
-
-        foreach ($ageMoviePicks[$ageBand] ?? [] as $title) {
-            $movieRecommendations[] = $title;
-        }
-
-        foreach ($genderMoviePicks[$gender] ?? ['Inclusive stories with diverse heroes (Family)'] as $title) {
-            $movieRecommendations[] = $title;
-        }
-
-        $movieRecommendations = array_values(array_unique($movieRecommendations));
-        $movieLinks = array_map(function (string $title): array {
-            return [
-                'title' => $title,
-                'type' => 'Movie',
-                'url' => 'https://www.google.com/search?q=' . urlencode($title . ' family movie'),
-            ];
-        }, $movieRecommendations);
-
-        $recommendationLinks = array_merge($recommendationLinks, $movieLinks);
-        $recommendationLinks = array_values($recommendationLinks);
 
         return view('reading-recommendations', [
             'child' => $child,
-            'essayCount' => $essays->count(),
+            'essayCount' => $essayCount,
             'recommendations' => $recommendationLinks,
-            'topics' => $matchedTopics,
-            'ageBand' => $ageBand,
+            'topics' => [],
+            'ageBand' => null,
+            'selectedChildId' => $childId,
         ]);
     })->name('reading-recommendations');
 

@@ -12,12 +12,11 @@
             </a>
         </div>
         @if (Auth::user()->children->isNotEmpty())
-            <form class="mt-4 flex items-center gap-2 text-sm" method="POST" action="{{ route('children.select') }}">
-                @csrf
+            <form class="mt-4 flex items-center gap-2 text-sm" method="GET" action="{{ url()->current() }}">
                 <label for="child_select_recommendations" class="text-gray-600">Child:</label>
                 <select id="child_select_recommendations" name="child_id" class="rounded-md border border-gray-300 px-2 py-1 text-sm" onchange="this.form.submit()" required>
                     @foreach (Auth::user()->children as $child)
-                        <option value="{{ $child->id }}" {{ (int) session('selected_child_id') === $child->id ? 'selected' : '' }}>
+                        <option value="{{ $child->id }}" {{ (int) ($selectedChildId ?? session('selected_child_id')) === $child->id ? 'selected' : '' }}>
                             {{ $child->name }}
                         </option>
                     @endforeach
@@ -34,30 +33,9 @@
                     Suggestions based on the latest essay submission and the selected child profile.
                 </p>
 
-                @if ($child)
-                    <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        <span class="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
-                            {{ $child->name }}
-                        </span>
-                        <span class="rounded-full bg-gray-100 px-3 py-1">
-                            Age {{ $child->age }}
-                        </span>
-                        <span class="rounded-full bg-gray-100 px-3 py-1">
-                            {{ ucfirst(str_replace('-', ' ', $child->gender)) }}
-                        </span>
-                    </div>
-                @endif
-
                 @if (! $essayCount)
                     <p class="mt-4 text-sm text-gray-600">Submit an essay to see tailored recommendations.</p>
                 @else
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        @foreach ($topics as $topic)
-                            <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                                {{ ucfirst($topic) }}
-                            </span>
-                        @endforeach
-                    </div>
                     <div class="mt-4">
                         <div class="text-sm font-semibold text-gray-800">Essays Considered</div>
                         <div class="mt-2 text-sm text-gray-600">
@@ -72,14 +50,16 @@
                 @if (empty($recommendations))
                     <p class="mt-2 text-sm text-gray-600">No recommendations yet.</p>
                 @else
-                    <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                    <ul class="mt-3 space-y-4 text-sm text-gray-700">
                         @foreach ($recommendations as $item)
-                            <li class="flex items-start gap-2">
-                                <span class="mt-1 h-2 w-2 rounded-full {{ $item['type'] === 'Movie' ? 'bg-amber-500' : 'bg-blue-500' }}"></span>
-                                <a class="text-blue-700 hover:underline" href="{{ $item['url'] }}" target="_blank" rel="noopener">
-                                    {{ $item['title'] }}
-                                </a>
-                                <span class="text-xs text-gray-500">({{ $item['type'] }})</span>
+                            <li class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                                <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                    <span class="rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">
+                                        {{ $item['type'] }}
+                                    </span>
+                                    <span class="font-semibold text-gray-800">{{ $item['title'] }}</span>
+                                </div>
+                                <p class="mt-2 text-sm text-gray-700">{{ $item['paragraph'] }}</p>
                             </li>
                         @endforeach
                     </ul>

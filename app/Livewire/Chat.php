@@ -192,6 +192,80 @@ class Chat extends Component
         return $email === $demoEmail || Str::startsWith(Str::lower($email), 'demo+');
     }
 
+    private function refreshReadingRecommendationsCache(?int $childId): void
+    {
+        $userId = auth()->id();
+        if (!$userId || !$childId) {
+            return;
+        }
+
+        $essays = DB::table('essay_submissions')
+            ->where('user_id', $userId)
+            ->where('child_id', $childId)
+            ->orderByDesc('uploaded_at')
+            ->get(['ocr_text', 'response_text', 'uploaded_at']);
+
+        $text = $essays
+            ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
+            ->filter()
+            ->implode("\n\n");
+
+        if (trim($text) === '') {
+            return;
+        }
+
+        $wordCount = str_word_count(strip_tags($text));
+        $targetWords = max(60, min(200, $wordCount ?: 80));
+
+        $child = auth()->user()?->children()->whereKey($childId)->first();
+        $event = new \App\Neuron\Events\RetrieveReadingRecommendations(
+            essayText: $text,
+            targetWords: $targetWords,
+            childName: $child?->name,
+            childAge: $child?->age,
+            childGender: $child?->gender
+        );
+
+        $state = new \NeuronAI\Workflow\WorkflowState();
+        (new \App\Neuron\Nodes\ReadingRecommendationsNode())($event, $state);
+
+        $raw = $state->get('reading_recommendations');
+        if (!is_string($raw)) {
+            return;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || !isset($decoded['items']) || !is_array($decoded['items'])) {
+            return;
+        }
+
+        $items = array_map(function (array $item): array {
+            return [
+                'title' => (string) ($item['title'] ?? ''),
+                'type' => (string) ($item['type'] ?? 'Book'),
+                'paragraph' => (string) ($item['paragraph'] ?? ''),
+            ];
+        }, $decoded['items']);
+
+        $latestSubmissionAt = $essays->max('uploaded_at');
+        $essayCount = $essays->count();
+
+        DB::table('reading_recommendations')
+            ->updateOrInsert(
+                [
+                    'user_id' => $userId,
+                    'child_id' => $childId,
+                ],
+                [
+                    'essay_count' => $essayCount,
+                    'last_submission_at' => $latestSubmissionAt,
+                    'items' => json_encode($items),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+    }
+
     public function clearAttachments(): void
     {
         $this->images = [];
@@ -242,6 +316,8 @@ class Chat extends Component
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            $this->refreshReadingRecommendationsCache($childId);
         } catch (\Throwable $exception) {
             $this->messages[] = [
                 'who' => 'ai',

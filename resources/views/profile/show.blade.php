@@ -30,10 +30,32 @@
                             <div class="space-y-3">
                                 @foreach (Auth::user()->children as $child)
                                     <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-gray-200 px-4 py-3">
-                                        <div>
-                                            <div class="text-sm font-semibold text-gray-800">{{ $child->name }}</div>
-                                            <div class="text-xs text-gray-500">Age {{ $child->age }} · {{ ucfirst(str_replace('-', ' ', $child->gender)) }}</div>
-                                        </div>
+                                        <div class="text-sm font-semibold text-gray-800">{{ $child->name }}</div>
+                                        <form class="child-inline-form flex flex-wrap items-end gap-3" method="POST" action="{{ route('children.update', $child) }}">
+                                            @csrf
+                                            @method('PUT')
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600" for="child_name_{{ $child->id }}">Name</label>
+                                                <input id="child_name_{{ $child->id }}" name="child_name" type="text" value="{{ $child->name }}" class="mt-1 w-32 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600" for="child_age_{{ $child->id }}">Age</label>
+                                                <input id="child_age_{{ $child->id }}" name="child_age" type="number" min="1" max="18" value="{{ $child->age }}" class="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-600" for="child_gender_{{ $child->id }}">Gender</label>
+                                                <select id="child_gender_{{ $child->id }}" name="child_gender" class="mt-1 w-36 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                                    <option value="female" {{ $child->gender === 'female' ? 'selected' : '' }}>Female</option>
+                                                    <option value="male" {{ $child->gender === 'male' ? 'selected' : '' }}>Male</option>
+                                                    <option value="non-binary" {{ $child->gender === 'non-binary' ? 'selected' : '' }}>Non-binary</option>
+                                                    <option value="prefer-not-to-say" {{ $child->gender === 'prefer-not-to-say' ? 'selected' : '' }}>Prefer not to say</option>
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800">
+                                                Update
+                                            </button>
+                                            <span class="child-save-status text-xs text-gray-500"></span>
+                                        </form>
                                     </div>
                                 @endforeach
                             </div>
@@ -101,3 +123,42 @@
         </div>
     </div>
 </x-app-layout>
+<script>
+    (function () {
+        const forms = document.querySelectorAll('form.child-inline-form');
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+        forms.forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const status = form.querySelector('.child-save-status');
+                if (status) {
+                    status.textContent = 'Saving...';
+                }
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': token || '',
+                            'Accept': 'application/json',
+                        },
+                        body: new FormData(form),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Save failed');
+                    }
+
+                    if (status) {
+                        status.textContent = 'Saved';
+                    }
+                } catch (error) {
+                    if (status) {
+                        status.textContent = 'Error';
+                    }
+                }
+            });
+        });
+    })();
+</script>

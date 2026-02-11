@@ -16,6 +16,54 @@
             <div class="mt-10 sm:mt-0">
                 <x-action-section>
                     <x-slot name="title">
+                        {{ __('Plan') }}
+                    </x-slot>
+
+                    <x-slot name="description">
+                        {{ __('Your current subscription tier.') }}
+                    </x-slot>
+
+                    <x-slot name="content">
+                        <form class="flex flex-wrap items-end gap-4" method="POST" action="{{ route('profile.plan.update') }}">
+                            @csrf
+                            <div>
+                                <label for="plan_type" class="block text-xs font-medium text-gray-600">Plan</label>
+                                <select id="plan_type" name="plan_type" class="mt-1 w-40 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                    <option value="free" {{ (Auth::user()->plan_type ?? 'free') === 'free' ? 'selected' : '' }}>Free</option>
+                                    <option value="sliver" {{ (Auth::user()->plan_type ?? '') === 'sliver' ? 'selected' : '' }}>Sliver</option>
+                                    <option value="gold" {{ (Auth::user()->plan_type ?? '') === 'gold' ? 'selected' : '' }}>Gold</option>
+                                    <option value="premium" {{ (Auth::user()->plan_type ?? '') === 'premium' ? 'selected' : '' }}>Premium</option>
+                                </select>
+                            </div>
+                            <div id="plan-info" class="text-xs text-gray-600" data-default="{{ Auth::user()->plan_type ?? 'free' }}">
+                                @php
+                                    $planType = Auth::user()->plan_type ?? 'free';
+                                @endphp
+                                @switch($planType)
+                                    @case('sliver')
+                                        $10 / month · 20 submissions
+                                        @break
+                                    @case('gold')
+                                        $20 / month · 50 submissions
+                                        @break
+                                    @case('premium')
+                                        $30 / month · Unlimited submissions
+                                        @break
+                                    @default
+                                        Free · 20 submissions (first month)
+                                @endswitch
+                            </div>
+                            <button type="submit" class="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800">
+                                Update
+                            </button>
+                        </form>
+                    </x-slot>
+                </x-action-section>
+            </div>
+
+            <div class="mt-10 sm:mt-0">
+                <x-action-section>
+                    <x-slot name="title">
                         {{ __('Children') }}
                     </x-slot>
 
@@ -163,5 +211,26 @@
                 }
             });
         });
+    })();
+
+    (function () {
+        const select = document.getElementById('plan_type');
+        const info = document.getElementById('plan-info');
+        if (!select || !info) return;
+
+        const copy = {
+            free: 'Free · 20 submissions (first month)',
+            sliver: '$10 / month · 20 submissions',
+            gold: '$20 / month · 50 submissions',
+            premium: '$30 / month · Unlimited submissions',
+        };
+
+        const update = () => {
+            const value = select.value || info.dataset.default || 'free';
+            info.textContent = copy[value] || copy.free;
+        };
+
+        select.addEventListener('change', update);
+        update();
     })();
 </script>

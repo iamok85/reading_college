@@ -30,6 +30,7 @@ class CreateNewUser implements CreatesNewUsers
             'child_name' => ['required', 'string', 'max:255'],
             'child_birth_year' => ['required', 'integer', 'min:' . $minYear, 'max:' . $maxYear],
             'child_gender' => ['required', 'string', 'max:50'],
+            'plan_type' => ['required', 'string', 'in:free,sliver,gold,premium'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
             'recaptcha_token' => ['required', 'string'],
@@ -45,12 +46,18 @@ class CreateNewUser implements CreatesNewUsers
         $birthYear = (int) $input['child_birth_year'];
         $age = now()->year - $birthYear;
 
+        $planType = $input['plan_type'] ?? 'free';
+        $isPaidPlan = in_array($planType, ['sliver', 'gold', 'premium'], true);
+
         $user = User::create([
             'name' => $input['name'],
             'child_name' => $input['child_name'],
             'child_birth_year' => $input['child_birth_year'],
             'child_gender' => $input['child_gender'],
             'child_age' => $age,
+            'plan_type' => $planType,
+            'free_trial_used_at' => $isPaidPlan ? now() : null,
+            'free_trial_ends_at' => $isPaidPlan ? now()->addMonth() : null,
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);

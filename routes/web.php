@@ -49,6 +49,9 @@ Route::get('/demo', function () {
             'email' => 'demo+' . Str::lower(Str::random(12)) . '@readingcollege.edu',
             'password' => Hash::make('demo1234'),
             'email_verified_at' => now(),
+            'plan_type' => 'free',
+            'free_trial_used_at' => now(),
+            'free_trial_ends_at' => now()->addMonth(),
         ]);
 
         session()->put('demo_user_id', $user->id);
@@ -251,6 +254,18 @@ Route::middleware([
         return back();
     })->name('children.select');
 
+    Route::post('/profile/plan', function (Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'plan_type' => ['required', 'string', 'in:free,sliver,gold,premium'],
+        ]);
+
+        $request->user()->update([
+            'plan_type' => $data['plan_type'],
+        ]);
+
+        return back();
+    })->name('profile.plan.update');
+
     Route::get('/reading-recommendations', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
         $child = $childId
@@ -391,5 +406,7 @@ Route::middleware([
             'selectedChildId' => $childId,
         ]);
     })->name('reading-recommendations');
+
+    Route::view('/billing', 'billing')->name('billing');
 
 });

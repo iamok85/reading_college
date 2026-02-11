@@ -35,8 +35,8 @@
             </div>
         </header>
         <main class="flex flex-1 items-center justify-center px-6">
-            <div class="max-w-2xl text-center">
-                <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div class="-mt-[400px] max-w-2xl text-center">
+                <div class="-mt-24 flex flex-wrap items-center justify-center gap-3">
                     <a href="{{ route('about') }}" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:border-gray-300">
                         About
                     </a>
@@ -48,11 +48,30 @@
                     </a>
                 </div>
                 <h1 class="mt-6 text-3xl font-semibold text-gray-900">
-                    Help your kids grow their writing skills.
+                    Writting Tracking · Reading Recommendation · Essay Share · Song Movie Scripting
                 </h1>
-                <p class="mt-4 text-base text-gray-600">
-                    Reading College helps families track improvements in kids' writing, automatically recommends reading materials, and can turn their essays into images, songs, or even short movies to make learning more vivid and interesting.
-                </p>
+
+                <div class="mt-10">
+                    <h2 class="text-lg font-semibold text-gray-900">Plans</h2>
+                    <p class="mt-2 text-sm text-gray-600">All plans include the first month free, then billed monthly.</p>
+                    <div class="mt-6 flex flex-wrap items-stretch justify-center gap-4">
+                        <div class="w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm sm:w-48">
+                            <div class="text-sm font-semibold text-gray-700">Silver</div>
+                            <div class="mt-2 text-2xl font-semibold text-gray-900">$10</div>
+                            <div class="text-xs text-gray-500">20 submissions / month</div>
+                        </div>
+                        <div class="w-full rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-left shadow-sm sm:w-48">
+                            <div class="text-sm font-semibold text-indigo-700">Gold</div>
+                            <div class="mt-2 text-2xl font-semibold text-gray-900">$20</div>
+                            <div class="text-xs text-gray-600">50 submissions / month</div>
+                        </div>
+                        <div class="w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm sm:w-48">
+                            <div class="text-sm font-semibold text-gray-700">Premium</div>
+                            <div class="mt-2 text-2xl font-semibold text-gray-900">$30</div>
+                            <div class="text-xs text-gray-500">Unlimited submissions</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </body>

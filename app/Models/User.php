@@ -31,6 +31,9 @@ class User extends Authenticatable
         'child_name',
         'child_birth_year',
         'child_gender',
+        'plan_type',
+        'free_trial_used_at',
+        'free_trial_ends_at',
         'email',
         'password',
     ];
@@ -66,6 +69,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'free_trial_used_at' => 'datetime',
+            'free_trial_ends_at' => 'datetime',
         ];
     }
 

@@ -17,6 +17,7 @@ use NeuronAI\Chat\Attachments\Image;
 use NeuronAI\Chat\Enums\AttachmentContentType;
 use NeuronAI\Chat\Messages\UserMessage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class Chat extends Component
 {
@@ -159,6 +160,25 @@ class Chat extends Component
         }
 
         $user = auth()->user();
+        if ($user && ($user->plan_type ?? 'free') === 'free') {
+            $trialEnds = $user->free_trial_ends_at ?? $user->created_at?->copy()->addMonth();
+            if ($trialEnds && Carbon::now()->greaterThan($trialEnds)) {
+                $this->addError('input', 'Your free trial has ended. Please upgrade to continue.');
+                $this->thinking = false;
+                return;
+            }
+
+            $submissionCount = DB::table('essay_submissions')
+                ->where('user_id', $user->id)
+                ->count();
+
+            if ($submissionCount >= 20) {
+                $this->addError('input', 'Free trial users can submit up to 20 essays in the first month.');
+                $this->thinking = false;
+                return;
+            }
+        }
+
         if ($user && $this->isDemoUser($user->email ?? '')) {
             $submissionCount = DB::table('essay_submissions')
                 ->where('user_id', $user->id)

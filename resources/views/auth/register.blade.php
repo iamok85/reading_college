@@ -16,17 +16,17 @@
             </div>
 
             <div class="mt-4">
-                <x-label for="child_name" value="{{ __('Child\\'s Name') }}" />
+                <x-label for="child_name" :value="__('Child\'s Name')" />
                 <x-input id="child_name" class="block mt-1 w-full" type="text" name="child_name" :value="old('child_name')" required autocomplete="given-name" />
             </div>
 
             <div class="mt-4">
-                <x-label for="child_birth_year" value="{{ __('Child\\'s Birth Year') }}" />
+                <x-label for="child_birth_year" :value="__('Child\'s Birth Year')" />
                 <x-input id="child_birth_year" class="block mt-1 w-full" type="number" name="child_birth_year" :value="old('child_birth_year')" min="{{ now()->year - 18 }}" max="{{ now()->year - 1 }}" required autocomplete="off" />
             </div>
 
             <div class="mt-4">
-                <x-label for="child_gender" value="{{ __('Child\\'s Gender') }}" />
+                <x-label for="child_gender" :value="__('Child\'s Gender')" />
                 <select id="child_gender" name="child_gender" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                     <option value="" disabled {{ old('child_gender') ? '' : 'selected' }}>Select</option>
                     <option value="female" {{ old('child_gender') === 'female' ? 'selected' : '' }}>Female</option>
@@ -34,6 +34,17 @@
                     <option value="non-binary" {{ old('child_gender') === 'non-binary' ? 'selected' : '' }}>Non-binary</option>
                     <option value="prefer-not-to-say" {{ old('child_gender') === 'prefer-not-to-say' ? 'selected' : '' }}>Prefer not to say</option>
                 </select>
+            </div>
+
+            <div class="mt-4">
+                <x-label for="plan_type" value="{{ __('Plan') }}" />
+                <select id="plan_type" name="plan_type" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    <option value="free" {{ old('plan_type', 'free') === 'free' ? 'selected' : '' }}>Free</option>
+                    <option value="sliver" {{ old('plan_type') === 'sliver' ? 'selected' : '' }}>Sliver</option>
+                    <option value="gold" {{ old('plan_type') === 'gold' ? 'selected' : '' }}>Gold</option>
+                    <option value="premium" {{ old('plan_type') === 'premium' ? 'selected' : '' }}>Premium</option>
+                </select>
+                <p class="mt-2 text-xs text-gray-500">Paid plans include a 1-month free trial and require a payment method.</p>
             </div>
 
             <div class="mt-4">

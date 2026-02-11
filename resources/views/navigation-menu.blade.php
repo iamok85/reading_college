@@ -97,6 +97,9 @@
                             <x-dropdown-link href="{{ route('profile.show') }}">
                                 {{ __('Profile') }}
                             </x-dropdown-link>
+                            <x-dropdown-link href="{{ route('billing') }}">
+                                {{ __('Billing') }}
+                            </x-dropdown-link>
 
 
                             @if (Laravel\Jetstream\Jetstream::hasApiFeatures())

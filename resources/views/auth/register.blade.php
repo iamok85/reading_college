@@ -21,8 +21,8 @@
             </div>
 
             <div class="mt-4">
-                <x-label for="child_age" value="{{ __('Child\\'s Age') }}" />
-                <x-input id="child_age" class="block mt-1 w-full" type="number" name="child_age" :value="old('child_age')" min="1" max="18" required autocomplete="off" />
+                <x-label for="child_birth_year" value="{{ __('Child\\'s Birth Year') }}" />
+                <x-input id="child_birth_year" class="block mt-1 w-full" type="number" name="child_birth_year" :value="old('child_birth_year')" min="{{ now()->year - 18 }}" max="{{ now()->year - 1 }}" required autocomplete="off" />
             </div>
 
             <div class="mt-4">

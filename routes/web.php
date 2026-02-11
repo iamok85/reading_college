@@ -167,9 +167,11 @@ Route::middleware([
     })->name('previous-essays.delete');
 
     Route::post('/child-profile', function (Illuminate\Http\Request $request) {
+        $minYear = now()->year - 18;
+        $maxYear = now()->year - 1;
         $data = $request->validate([
             'child_name' => ['required', 'string', 'max:255'],
-            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_birth_year' => ['required', 'integer', 'min:' . $minYear, 'max:' . $maxYear],
             'child_gender' => ['required', 'string', 'max:50'],
         ]);
 
@@ -177,7 +179,7 @@ Route::middleware([
         $child = Child::create([
             'user_id' => $user->id,
             'name' => $data['child_name'],
-            'age' => $data['child_age'],
+            'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);
 
@@ -187,16 +189,18 @@ Route::middleware([
     })->name('child-profile.update');
 
     Route::post('/children', function (Illuminate\Http\Request $request) {
+        $minYear = now()->year - 18;
+        $maxYear = now()->year - 1;
         $data = $request->validate([
             'child_name' => ['required', 'string', 'max:255'],
-            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_birth_year' => ['required', 'integer', 'min:' . $minYear, 'max:' . $maxYear],
             'child_gender' => ['required', 'string', 'max:50'],
         ]);
 
         $child = Child::create([
             'user_id' => $request->user()->id,
             'name' => $data['child_name'],
-            'age' => $data['child_age'],
+            'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);
 
@@ -206,9 +210,11 @@ Route::middleware([
     })->name('children.store');
 
     Route::put('/children/{child}', function (Illuminate\Http\Request $request, Child $child) {
+        $minYear = now()->year - 18;
+        $maxYear = now()->year - 1;
         $data = $request->validate([
             'child_name' => ['required', 'string', 'max:255'],
-            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_birth_year' => ['required', 'integer', 'min:' . $minYear, 'max:' . $maxYear],
             'child_gender' => ['required', 'string', 'max:50'],
         ]);
 
@@ -218,7 +224,7 @@ Route::middleware([
 
         $child->update([
             'name' => $data['child_name'],
-            'age' => $data['child_age'],
+            'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);
 
@@ -278,13 +284,20 @@ Route::middleware([
             $wordCount = str_word_count(strip_tags($text));
             $targetWords = max(60, min(200, $wordCount ?: 80));
 
-            $event = new RetrieveReadingRecommendations(
-                essayText: $text,
-                targetWords: $targetWords,
-                childName: $child?->name,
-                childAge: $child?->age,
-                childGender: $child?->gender
-            );
+        $childAge = null;
+        if ($child?->birth_year) {
+            $childAge = now()->year - $child->birth_year;
+        } elseif (property_exists($child, 'age') && $child?->age) {
+            $childAge = (int) $child->age;
+        }
+
+        $event = new RetrieveReadingRecommendations(
+            essayText: $text,
+            targetWords: $targetWords,
+            childName: $child?->name,
+            childAge: $childAge,
+            childGender: $child?->gender
+        );
 
             $state = new WorkflowState();
             (new ReadingRecommendationsNode())($event, $state);

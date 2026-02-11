@@ -30,7 +30,10 @@
                             <div class="space-y-3">
                                 @foreach (Auth::user()->children as $child)
                                     <div class="flex flex-wrap items-center justify-between gap-4 rounded-md border border-gray-200 px-4 py-3">
-                                        <div class="text-sm font-semibold text-gray-800">{{ $child->name }}</div>
+                                        <div>
+                                            <div class="text-sm font-semibold text-gray-800">{{ $child->name }}</div>
+                                            <div class="text-xs text-gray-500">Born {{ $child->birth_year }} · {{ ucfirst(str_replace('-', ' ', $child->gender)) }}</div>
+                                        </div>
                                         <form class="child-inline-form flex flex-wrap items-end gap-3" method="POST" action="{{ route('children.update', $child) }}">
                                             @csrf
                                             @method('PUT')
@@ -39,8 +42,8 @@
                                                 <input id="child_name_{{ $child->id }}" name="child_name" type="text" value="{{ $child->name }}" class="mt-1 w-32 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                             </div>
                                             <div>
-                                                <label class="block text-xs font-medium text-gray-600" for="child_age_{{ $child->id }}">Age</label>
-                                                <input id="child_age_{{ $child->id }}" name="child_age" type="number" min="1" max="18" value="{{ $child->age }}" class="mt-1 w-20 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                                <label class="block text-xs font-medium text-gray-600" for="child_age_{{ $child->id }}">Birth Year</label>
+                                                <input id="child_age_{{ $child->id }}" name="child_birth_year" type="number" min="{{ now()->year - 18 }}" max="{{ now()->year - 1 }}" value="{{ $child->birth_year }}" class="mt-1 w-24 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                             </div>
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-600" for="child_gender_{{ $child->id }}">Gender</label>
@@ -69,8 +72,8 @@
                                     <input id="child_name_profile" name="child_name" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                 </div>
                                 <div class="col-span-6 sm:col-span-2">
-                                    <label for="child_age_profile" class="block text-sm font-medium text-gray-700">Age</label>
-                                    <input id="child_age_profile" name="child_age" type="number" min="1" max="18" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                    <label for="child_age_profile" class="block text-sm font-medium text-gray-700">Birth Year</label>
+                                    <input id="child_age_profile" name="child_birth_year" type="number" min="{{ now()->year - 18 }}" max="{{ now()->year - 1 }}" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                                 </div>
                                 <div class="col-span-6 sm:col-span-2">
                                     <label for="child_gender_profile" class="block text-sm font-medium text-gray-700">Gender</label>

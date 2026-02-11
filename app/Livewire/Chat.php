@@ -218,11 +218,17 @@ class Chat extends Component
         $targetWords = max(60, min(200, $wordCount ?: 80));
 
         $child = auth()->user()?->children()->whereKey($childId)->first();
+        $childAge = null;
+        if ($child?->birth_year) {
+            $childAge = now()->year - $child->birth_year;
+        } elseif (property_exists($child, 'age') && $child?->age) {
+            $childAge = (int) $child->age;
+        }
         $event = new \App\Neuron\Events\RetrieveReadingRecommendations(
             essayText: $text,
             targetWords: $targetWords,
             childName: $child?->name,
-            childAge: $child?->age,
+            childAge: $childAge,
             childGender: $child?->gender
         );
 

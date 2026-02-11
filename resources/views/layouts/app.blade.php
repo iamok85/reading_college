@@ -53,8 +53,8 @@
                             <input id="child_name_modal" name="child_name" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                         </div>
                         <div>
-                            <label for="child_age_modal" class="block text-sm font-medium text-gray-700">Child's Age</label>
-                            <input id="child_age_modal" name="child_age" type="number" min="1" max="18" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                            <label for="child_age_modal" class="block text-sm font-medium text-gray-700">Child's Birth Year</label>
+                            <input id="child_age_modal" name="child_birth_year" type="number" min="{{ now()->year - 18 }}" max="{{ now()->year - 1 }}" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                         </div>
                         <div>
                             <label for="child_gender_modal" class="block text-sm font-medium text-gray-700">Child's Gender</label>

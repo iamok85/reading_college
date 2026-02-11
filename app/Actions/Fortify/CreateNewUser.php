@@ -22,10 +22,13 @@ class CreateNewUser implements CreatesNewUsers
      */
     public function create(array $input): User
     {
+        $minYear = now()->year - 18;
+        $maxYear = now()->year - 1;
+
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
             'child_name' => ['required', 'string', 'max:255'],
-            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_birth_year' => ['required', 'integer', 'min:' . $minYear, 'max:' . $maxYear],
             'child_gender' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
@@ -42,7 +45,7 @@ class CreateNewUser implements CreatesNewUsers
         $user = User::create([
             'name' => $input['name'],
             'child_name' => $input['child_name'],
-            'child_age' => $input['child_age'],
+            'child_birth_year' => $input['child_birth_year'],
             'child_gender' => $input['child_gender'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
@@ -51,7 +54,7 @@ class CreateNewUser implements CreatesNewUsers
         Child::create([
             'user_id' => $user->id,
             'name' => $input['child_name'],
-            'age' => $input['child_age'],
+            'birth_year' => $input['child_birth_year'],
             'gender' => $input['child_gender'],
         ]);
 

@@ -36,6 +36,11 @@
                 @if (! $essayCount)
                     <p class="mt-4 text-sm text-gray-600">Submit an essay to see tailored recommendations.</p>
                 @else
+                    <div class="mt-4 flex justify-end">
+                        <a href="{{ route('reading-recommendations', ['download' => 1, 'child_id' => $selectedChildId]) }}" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            Download PDF
+                        </a>
+                    </div>
                     <div class="mt-4">
                         <div class="text-sm font-semibold text-gray-800">Essays Considered</div>
                         <div class="mt-2 text-sm text-gray-600">
@@ -51,13 +56,16 @@
                     <p class="mt-2 text-sm text-gray-600">No recommendations yet.</p>
                 @else
                     <ul class="mt-3 space-y-4 text-sm text-gray-700">
-                        @foreach ($recommendations as $item)
+                        @foreach ($recommendations as $index => $item)
                             <li class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                                <div class="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                                     <span class="rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">
                                         {{ $item['type'] }}
                                     </span>
                                     <span class="font-semibold text-gray-800">{{ $item['title'] }}</span>
+                                    <a class="text-blue-700 hover:underline" href="{{ route('reading-recommendations', ['download_item' => $index, 'child_id' => $selectedChildId]) }}">
+                                        Download PDF
+                                    </a>
                                 </div>
                                 <p class="mt-2 text-sm text-gray-700">{{ $item['paragraph'] }}</p>
                             </li>

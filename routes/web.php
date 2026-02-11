@@ -263,6 +263,48 @@ Route::middleware([
             ->where('child_id', $childId)
             ->first();
 
+        if ($request->boolean('download')) {
+            $items = [];
+            if ($cached) {
+                $items = json_decode((string) $cached->items, true) ?: [];
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.reading-recommendations', [
+                'items' => $items,
+                'generatedAt' => now(),
+            ])->setPaper('a4');
+
+            $filename = 'reading-recommendations-' . now()->format('YmdHis') . '.pdf';
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, $filename);
+        }
+
+        if ($request->filled('download_item')) {
+            $index = (int) $request->input('download_item');
+            $items = [];
+            if ($cached) {
+                $items = json_decode((string) $cached->items, true) ?: [];
+            }
+
+            $item = $items[$index] ?? null;
+            if (!$item) {
+                abort(404);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf/reading-recommendation-item', [
+                'item' => $item,
+                'generatedAt' => now(),
+            ])->setPaper('a4');
+
+            $filename = 'reading-recommendation-' . $index . '-' . now()->format('YmdHis') . '.pdf';
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, $filename);
+        }
+
         if ($cached && $cached->essay_count === $essayCount && $cached->last_submission_at === $latestSubmissionAt) {
             $items = json_decode((string) $cached->items, true) ?: [];
             return view('reading-recommendations', [

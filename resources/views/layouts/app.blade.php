@@ -40,6 +40,42 @@
             </main>
         </div>
 
+        @if (Auth::check() && ! Auth::user()->children()->exists())
+            <div id="child-profile-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                <div class="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg">
+                    <h2 class="text-lg font-semibold text-gray-900">Tell us about your child</h2>
+                    <p class="mt-2 text-sm text-gray-600">Please add your child’s details to personalize recommendations.</p>
+
+                    <form class="mt-6 space-y-4" method="POST" action="{{ route('children.store') }}">
+                        @csrf
+                        <div>
+                            <label for="child_name_modal" class="block text-sm font-medium text-gray-700">Child's Name</label>
+                            <input id="child_name_modal" name="child_name" type="text" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                        </div>
+                        <div>
+                            <label for="child_age_modal" class="block text-sm font-medium text-gray-700">Child's Age</label>
+                            <input id="child_age_modal" name="child_age" type="number" min="1" max="18" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                        </div>
+                        <div>
+                            <label for="child_gender_modal" class="block text-sm font-medium text-gray-700">Child's Gender</label>
+                            <select id="child_gender_modal" name="child_gender" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                <option value="" disabled selected>Select</option>
+                                <option value="female">Female</option>
+                                <option value="male">Male</option>
+                                <option value="non-binary">Non-binary</option>
+                                <option value="prefer-not-to-say">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
+
         @stack('modals')
 
         @livewireScripts

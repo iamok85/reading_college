@@ -16,6 +16,27 @@
             </div>
 
             <div class="mt-4">
+                <x-label for="child_name" value="{{ __('Child\\'s Name') }}" />
+                <x-input id="child_name" class="block mt-1 w-full" type="text" name="child_name" :value="old('child_name')" required autocomplete="given-name" />
+            </div>
+
+            <div class="mt-4">
+                <x-label for="child_age" value="{{ __('Child\\'s Age') }}" />
+                <x-input id="child_age" class="block mt-1 w-full" type="number" name="child_age" :value="old('child_age')" min="1" max="18" required autocomplete="off" />
+            </div>
+
+            <div class="mt-4">
+                <x-label for="child_gender" value="{{ __('Child\\'s Gender') }}" />
+                <select id="child_gender" name="child_gender" class="block mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                    <option value="" disabled {{ old('child_gender') ? '' : 'selected' }}>Select</option>
+                    <option value="female" {{ old('child_gender') === 'female' ? 'selected' : '' }}>Female</option>
+                    <option value="male" {{ old('child_gender') === 'male' ? 'selected' : '' }}>Male</option>
+                    <option value="non-binary" {{ old('child_gender') === 'non-binary' ? 'selected' : '' }}>Non-binary</option>
+                    <option value="prefer-not-to-say" {{ old('child_gender') === 'prefer-not-to-say' ? 'selected' : '' }}>Prefer not to say</option>
+                </select>
+            </div>
+
+            <div class="mt-4">
                 <x-label for="email" value="{{ __('Email') }}" />
                 <x-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
             </div>

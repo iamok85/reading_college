@@ -85,9 +85,9 @@ class Chat extends Component
         $username = $user?->name ?? 'user';
         $safeName = Str::slug($username) ?: 'user';
         $demoEmail = config('reading_college.demo_user_email');
-        $demoName = config('reading_college.demo_user_name');
-        $isDemoUser = $user?->email === $demoEmail || $username === $demoName;
-        $baseDirectory = $isDemoUser ? 'demo-uploads' : 'ocr/' . $safeName;
+        $email = $user?->email ?? '';
+        $isDemoUser = $email === $demoEmail || Str::startsWith($email, 'demo+');
+        $baseDirectory = $isDemoUser ? 'demo-uploads/' . $user->id : 'ocr/' . $safeName;
 
         foreach ($this->images as $image) {
             $extension = $image->getClientOriginalExtension() ?: 'png';
@@ -158,6 +158,19 @@ class Chat extends Component
             $composedInput = trim((string) $this->ocrPreview);
         }
 
+        $user = auth()->user();
+        if ($user && $this->isDemoUser($user->email ?? '')) {
+            $submissionCount = DB::table('essay_submissions')
+                ->where('user_id', $user->id)
+                ->count();
+
+            if ($submissionCount >= 2) {
+                $this->addError('input', 'Demo users can submit up to 2 essays.');
+                $this->thinking = false;
+                return;
+            }
+        }
+
         $this->messages[] = [
             'who' => 'user',
             'content' => $composedInput,
@@ -171,6 +184,12 @@ class Chat extends Component
         $this->dispatch('getEssayCorrectionResponse', $composedInput);
         $this->input = '';
         $this->ocrLoading = false;
+    }
+
+    private function isDemoUser(string $email): bool
+    {
+        $demoEmail = config('reading_college.demo_user_email');
+        return $email === $demoEmail || Str::startsWith(Str::lower($email), 'demo+');
     }
 
     public function clearAttachments(): void
@@ -205,8 +224,17 @@ class Chat extends Component
             $this->thinking = false;
             $this->dispatch('scroll-bottom');
 
+            $childId = (int) session('selected_child_id', 0);
+            if (!$childId) {
+                $childId = (int) auth()->user()?->children()->orderBy('id')->value('id');
+                if ($childId) {
+                    session(['selected_child_id' => $childId]);
+                }
+            }
+
             DB::table('essay_submissions')->insert([
                 'user_id' => auth()->id(),
+                'child_id' => $childId ?: null,
                 'image_paths' => json_encode(array_values(array_merge($this->ocrImagePaths, $this->pdfPaths))),
                 'uploaded_at' => now(),
                 'ocr_text' => $this->ocrPreview ?? $this->lastSubmittedText,

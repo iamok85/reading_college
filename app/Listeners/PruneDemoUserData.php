@@ -5,6 +5,7 @@ namespace App\Listeners;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PruneDemoUserData
 {
@@ -16,15 +17,16 @@ class PruneDemoUserData
             return;
         }
 
+        $email = $user->email ?? '';
         $demoEmail = config('reading_college.demo_user_email');
-        $demoName = config('reading_college.demo_user_name');
+        $isDemo = $email === $demoEmail || Str::startsWith($email, 'demo+');
 
-        if ($user->email !== $demoEmail && $user->name !== $demoName) {
+        if (! $isDemo) {
             return;
         }
 
         DB::table('essay_submissions')->where('user_id', $user->id)->delete();
-        Storage::disk('public')->deleteDirectory('demo-uploads');
+        Storage::disk('public')->deleteDirectory('demo-uploads/' . $user->id);
 
         $user->delete();
     }

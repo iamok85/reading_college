@@ -3,6 +3,7 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Models\Child;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -23,6 +24,9 @@ class CreateNewUser implements CreatesNewUsers
     {
         Validator::make($input, [
             'name' => ['required', 'string', 'max:255'],
+            'child_name' => ['required', 'string', 'max:255'],
+            'child_age' => ['required', 'integer', 'min:1', 'max:18'],
+            'child_gender' => ['required', 'string', 'max:50'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => $this->passwordRules(),
             'recaptcha_token' => ['required', 'string'],
@@ -35,10 +39,22 @@ class CreateNewUser implements CreatesNewUsers
             ]);
         }
 
-        return User::create([
+        $user = User::create([
             'name' => $input['name'],
+            'child_name' => $input['child_name'],
+            'child_age' => $input['child_age'],
+            'child_gender' => $input['child_gender'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);
+
+        Child::create([
+            'user_id' => $user->id,
+            'name' => $input['child_name'],
+            'age' => $input['child_age'],
+            'gender' => $input['child_gender'],
+        ]);
+
+        return $user;
     }
 }

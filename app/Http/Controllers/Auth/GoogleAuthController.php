@@ -24,6 +24,7 @@ class GoogleAuthController extends Controller
             [
                 'name' => $googleUser->getName() ?: $googleUser->getNickname() ?: 'Google User',
                 'password' => bcrypt(Str::random(32)),
+                'plan_type' => 'free',
             ]
         );
 

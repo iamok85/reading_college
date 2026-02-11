@@ -176,9 +176,11 @@ Route::middleware([
         ]);
 
         $user = $request->user();
+        $age = now()->year - (int) $data['child_birth_year'];
         $child = Child::create([
             'user_id' => $user->id,
             'name' => $data['child_name'],
+            'age' => $age,
             'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);
@@ -197,9 +199,11 @@ Route::middleware([
             'child_gender' => ['required', 'string', 'max:50'],
         ]);
 
+        $age = now()->year - (int) $data['child_birth_year'];
         $child = Child::create([
             'user_id' => $request->user()->id,
             'name' => $data['child_name'],
+            'age' => $age,
             'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);
@@ -222,8 +226,10 @@ Route::middleware([
             abort(403);
         }
 
+        $age = now()->year - (int) $data['child_birth_year'];
         $child->update([
             'name' => $data['child_name'],
+            'age' => $age,
             'birth_year' => $data['child_birth_year'],
             'gender' => $data['child_gender'],
         ]);

@@ -42,11 +42,15 @@ class CreateNewUser implements CreatesNewUsers
             ]);
         }
 
+        $birthYear = (int) $input['child_birth_year'];
+        $age = now()->year - $birthYear;
+
         $user = User::create([
             'name' => $input['name'],
             'child_name' => $input['child_name'],
             'child_birth_year' => $input['child_birth_year'],
             'child_gender' => $input['child_gender'],
+            'child_age' => $age,
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
         ]);
@@ -54,6 +58,7 @@ class CreateNewUser implements CreatesNewUsers
         Child::create([
             'user_id' => $user->id,
             'name' => $input['child_name'],
+            'age' => $age,
             'birth_year' => $input['child_birth_year'],
             'gender' => $input['child_gender'],
         ]);

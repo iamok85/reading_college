@@ -53,7 +53,7 @@ class Chat extends Component
 
         $this->validate([
             'queuedFiles' => ['array', 'max:5'],
-            'queuedFiles.*' => ['file', 'max:10240', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,application/pdf'],
+            'queuedFiles.*' => ['file', 'max:10240', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,application/pdf'],
         ]);
 
         foreach ($this->queuedFiles as $file) {
@@ -108,7 +108,7 @@ class Chat extends Component
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
             'images' => ['array'],
-            'images.*' => ['image', 'max:5120'],
+            'images.*' => ['file', 'max:5120', 'mimetypes:image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif'],
             'pdfs' => ['array'],
             'pdfs.*' => ['file', 'max:10240', 'mimes:pdf'],
         ]);

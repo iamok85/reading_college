@@ -19,9 +19,17 @@
     <body class="min-h-screen bg-white flex flex-col">
         <header class="border-b border-gray-100">
             <div class="mx-auto flex max-w-6xl items-start justify-between gap-6 px-6 py-4 text-sm">
-                <div class="flex items-center gap-2 text-base font-semibold text-gray-900">
-                    <img src="/images/reading-college-logo.svg" alt="Reading College logo" class="h-8 w-auto" />
-                    Reading College
+                <div>
+                    <div class="flex items-center gap-2 text-base font-semibold text-gray-900">
+                        <img src="/images/reading-college-logo.svg" alt="Reading College logo" class="h-8 w-auto" />
+                        Reading College
+                        <a href="{{ route('investor') }}" class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-700 hover:bg-gray-200">
+                            Investor
+                        </a>
+                    </div>
+                    <div class="mt-1 text-xs text-gray-500">
+                        Track writing growth, recommend readings, and turn essays into creative media.
+                    </div>
                 </div>
                 <div class="flex-1"></div>
                 <div class="flex items-center gap-3">

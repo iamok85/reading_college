@@ -72,6 +72,7 @@ Route::get('/demo', function () {
 
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+Route::view('/investor', 'investor')->name('investor');
 
 Route::middleware([
     'auth:sanctum',

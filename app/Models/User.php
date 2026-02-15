@@ -78,4 +78,29 @@ class User extends Authenticatable
     {
         return $this->hasMany(Child::class);
     }
+
+    public function essaySubmissions(): HasMany
+    {
+        return $this->hasMany(EssaySubmission::class);
+    }
+
+    public function readingRecommendations(): HasMany
+    {
+        return $this->hasMany(ReadingRecommendation::class);
+    }
+
+    public function essaySongs(): HasMany
+    {
+        return $this->hasMany(EssaySong::class);
+    }
+
+    public function essayAnalyses(): HasMany
+    {
+        return $this->hasMany(EssayAnalysis::class);
+    }
+
+    public function openAiLogs(): HasMany
+    {
+        return $this->hasMany(OpenAiLog::class);
+    }
 }

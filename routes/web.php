@@ -1,18 +1,26 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Child;
 use App\Models\Contact;
+use App\Models\EssaySubmission;
+use App\Models\ReadingRecommendation;
+use App\Models\EssaySong;
+use App\Models\EssayAnalysis;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Support\Recaptcha;
 use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Neuron\Nodes\ReadingRecommendationsNode;
+use App\Neuron\Events\RetrieveEssaySong;
+use App\Neuron\Nodes\EssaySongNode;
+use App\Neuron\Events\RetrieveEssayAnalysis;
+use App\Neuron\Nodes\EssayAnalysisNode;
 use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
@@ -106,8 +114,7 @@ Route::middleware([
     Route::get('/previous-essays', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
         if ($request->filled('download')) {
-            $essay = DB::table('essay_submissions')
-                ->where('user_id', auth()->id())
+            $essay = EssaySubmission::where('user_id', auth()->id())
                 ->when($childId, fn ($query) => $query->where('child_id', $childId))
                 ->where('id', $request->input('download'))
                 ->first();
@@ -143,8 +150,7 @@ Route::middleware([
             }, $filename);
         }
 
-        $essays = DB::table('essay_submissions')
-            ->where('user_id', auth()->id())
+        $essays = EssaySubmission::where('user_id', auth()->id())
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
             ->orderByDesc('uploaded_at')
             ->paginate(1)
@@ -161,8 +167,7 @@ Route::middleware([
             'essay_id' => ['required', 'integer'],
         ]);
 
-        DB::table('essay_submissions')
-            ->where('user_id', auth()->id())
+        EssaySubmission::where('user_id', auth()->id())
             ->where('id', $data['essay_id'])
             ->delete();
 
@@ -271,23 +276,22 @@ Route::middleware([
         $child = $childId
             ? Child::where('user_id', auth()->id())->whereKey($childId)->first()
             : null;
-        $essays = DB::table('essay_submissions')
-            ->where('user_id', auth()->id())
+        $essays = EssaySubmission::where('user_id', auth()->id())
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
             ->orderByDesc('uploaded_at')
             ->get(['ocr_text', 'response_text', 'uploaded_at']);
 
         $latestSubmissionAt = $essays->max('uploaded_at');
+        $latestSubmissionKey = $latestSubmissionAt?->toDateTimeString();
         $essayCount = $essays->count();
-        $cached = DB::table('reading_recommendations')
-            ->where('user_id', auth()->id())
+        $cached = ReadingRecommendation::where('user_id', auth()->id())
             ->where('child_id', $childId)
             ->first();
 
         if ($request->boolean('download')) {
             $items = [];
             if ($cached) {
-                $items = json_decode((string) $cached->items, true) ?: [];
+                $items = $cached->items ?? [];
             }
 
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.reading-recommendations', [
@@ -306,7 +310,7 @@ Route::middleware([
             $index = (int) $request->input('download_item');
             $items = [];
             if ($cached) {
-                $items = json_decode((string) $cached->items, true) ?: [];
+                $items = $cached->items ?? [];
             }
 
             $item = $items[$index] ?? null;
@@ -326,8 +330,9 @@ Route::middleware([
             }, $filename);
         }
 
-        if ($cached && $cached->essay_count === $essayCount && $cached->last_submission_at === $latestSubmissionAt) {
-            $items = json_decode((string) $cached->items, true) ?: [];
+        $cachedSubmissionKey = $cached?->last_submission_at?->toDateTimeString();
+        if ($cached && $cached->essay_count === $essayCount && $cachedSubmissionKey === $latestSubmissionKey) {
+            $items = $cached->items ?? [];
             return view('reading-recommendations', [
                 'child' => $child,
                 'essayCount' => $essayCount,
@@ -338,14 +343,51 @@ Route::middleware([
             ]);
         }
 
+        $recommendationLinks = [];
+        $isRefreshing = false;
+        if ($cached) {
+            $recommendationLinks = $cached->items ?? [];
+            $isRefreshing = !($cached->essay_count === $essayCount && $cachedSubmissionKey === $latestSubmissionKey);
+        } elseif ($essayCount > 0) {
+            $isRefreshing = true;
+        }
+
+        return view('reading-recommendations', [
+            'child' => $child,
+            'essayCount' => $essayCount,
+            'recommendations' => $recommendationLinks,
+            'topics' => [],
+            'ageBand' => null,
+            'isRefreshing' => $isRefreshing,
+            'selectedChildId' => $childId,
+        ]);
+    })->name('reading-recommendations');
+
+    Route::post('/reading-recommendations/refresh', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+
+        $essays = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('uploaded_at')
+            ->get(['ocr_text', 'response_text', 'uploaded_at']);
+
         $text = $essays
             ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
             ->filter()
             ->implode("\n\n");
-        $recommendationLinks = [];
-        if (trim($text) !== '') {
-            $wordCount = str_word_count(strip_tags($text));
-            $targetWords = max(60, min(200, $wordCount ?: 80));
+
+        if (trim($text) === '') {
+            return back()->withErrors([
+                'readings' => 'No essay content available to refresh.',
+            ]);
+        }
+
+        $wordCount = str_word_count(strip_tags($text));
+        $targetWords = max(60, min(200, $wordCount ?: 80));
+
+        $child = $childId
+            ? Child::where('user_id', auth()->id())->whereKey($childId)->first()
+            : null;
 
         $childAge = null;
         if ($child?->birth_year) {
@@ -362,51 +404,256 @@ Route::middleware([
             childGender: $child?->gender
         );
 
-            $state = new WorkflowState();
-            (new ReadingRecommendationsNode())($event, $state);
+        $state = new WorkflowState();
+        (new ReadingRecommendationsNode())($event, $state);
 
-            $raw = $state->get('reading_recommendations');
-            if (is_string($raw)) {
-                $decoded = json_decode($raw, true);
-                if (is_array($decoded) && isset($decoded['items']) && is_array($decoded['items'])) {
-                    $recommendationLinks = array_map(function (array $item): array {
-                        return [
-                            'title' => (string) ($item['title'] ?? ''),
-                            'type' => (string) ($item['type'] ?? 'Book'),
-                            'paragraph' => (string) ($item['paragraph'] ?? ''),
-                        ];
-                    }, $decoded['items']);
-                }
+        $raw = $state->get('reading_recommendations');
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($decoded) || !isset($decoded['items']) || !is_array($decoded['items'])) {
+            return back()->withErrors([
+                'readings' => 'Failed to refresh readings.',
+            ]);
+        }
+
+        $recommendationLinks = array_map(function (array $item): array {
+            return [
+                'title' => (string) ($item['title'] ?? ''),
+                'type' => (string) ($item['type'] ?? 'Book'),
+                'paragraph' => (string) ($item['paragraph'] ?? ''),
+            ];
+        }, $decoded['items']);
+
+        ReadingRecommendation::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'child_id' => $childId,
+            ],
+            [
+                'essay_count' => $essays->count(),
+                'last_submission_at' => $essays->max('uploaded_at'),
+                'items' => $recommendationLinks,
+            ]
+        );
+
+        return back();
+    })->name('reading-recommendations.refresh');
+
+    Route::get('/analysis', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+
+        $essays = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('uploaded_at')
+            ->limit(5)
+            ->get(['uploaded_at']);
+
+        $latestSubmissionAt = $essays->max('uploaded_at');
+        $latestSubmissionKey = $latestSubmissionAt?->toDateTimeString();
+        $essayCount = $essays->count();
+
+        $cached = EssayAnalysis::where('user_id', auth()->id())
+            ->where('child_id', $childId)
+            ->first();
+
+        $analysis = $cached?->analysis_text;
+        $isRefreshing = false;
+
+        if ($essayCount > 0) {
+            if (! $cached) {
+                $isRefreshing = true;
+            } else {
+                $cachedSubmissionKey = $cached->last_submission_at?->toDateTimeString();
+                $isRefreshing = $cached->essay_count !== $essayCount || $cachedSubmissionKey !== $latestSubmissionKey;
             }
         }
 
-        if (!empty($recommendationLinks)) {
-            DB::table('reading_recommendations')
-                ->updateOrInsert(
-                    [
-                        'user_id' => auth()->id(),
-                        'child_id' => $childId,
-                    ],
-                    [
-                        'essay_count' => $essayCount,
-                        'last_submission_at' => $latestSubmissionAt,
-                        'items' => json_encode($recommendationLinks),
-                        'updated_at' => now(),
-                        'created_at' => $cached?->created_at ?? now(),
-                    ]
-                );
+        if ($request->boolean('download')) {
+            if (! $analysis) {
+                return back()->withErrors([
+                    'analysis' => 'No analysis available to download yet.',
+                ]);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf/analysis', [
+                'analysis' => $analysis,
+                'generatedAt' => now(),
+            ])->setPaper('a4');
+
+            $filename = 'analysis-' . now()->format('YmdHis') . '.pdf';
+
+            return response()->streamDownload(function () use ($pdf) {
+                echo $pdf->output();
+            }, $filename);
         }
 
-        return view('reading-recommendations', [
-            'child' => $child,
+        return view('analysis', [
+            'analysis' => $analysis,
+            'error' => null,
             'essayCount' => $essayCount,
-            'recommendations' => $recommendationLinks,
-            'topics' => [],
-            'ageBand' => null,
+            'isRefreshing' => $isRefreshing,
             'selectedChildId' => $childId,
         ]);
-    })->name('reading-recommendations');
+    })->name('analysis');
+
+    Route::post('/analysis/refresh', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+
+        $essays = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('uploaded_at')
+            ->limit(5)
+            ->get(['ocr_text', 'response_text', 'uploaded_at']);
+
+        $text = $essays
+            ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
+            ->filter()
+            ->implode("\n\n");
+
+        if (trim($text) === '') {
+            return back()->withErrors([
+                'analysis' => 'No essay content available to refresh.',
+            ]);
+        }
+
+        $event = new RetrieveEssayAnalysis(
+            essayText: $text,
+            essayCount: $essays->count()
+        );
+        $state = new WorkflowState();
+        (new EssayAnalysisNode())($event, $state);
+
+        $analysis = $state->get('essay_analysis');
+        if (!is_string($analysis) || trim($analysis) === '') {
+            return back()->withErrors([
+                'analysis' => 'Failed to refresh analysis.',
+            ]);
+        }
+
+        EssayAnalysis::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'child_id' => $childId,
+            ],
+            [
+                'essay_count' => $essays->count(),
+                'last_submission_at' => $essays->max('uploaded_at'),
+                'analysis_text' => $analysis,
+            ]
+        );
+
+        return back();
+    })->name('analysis.refresh');
 
     Route::view('/billing', 'billing')->name('billing');
+    Route::get('/songs', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+
+        $essays = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('uploaded_at')
+            ->get();
+
+        $songs = EssaySong::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->get()
+            ->keyBy('essay_submission_id');
+
+        return view('songs', [
+            'essays' => $essays,
+            'songs' => $songs,
+            'selectedChildId' => $childId,
+        ]);
+    })->name('songs');
+
+    Route::post('/essay-songs/{essay}', function (Illuminate\Http\Request $request, int $essay) {
+        $essayRecord = EssaySubmission::where('id', $essay)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (! $essayRecord) {
+            abort(404);
+        }
+
+        $lyrics = trim((string) ($essayRecord->response_text ?: $essayRecord->ocr_text));
+        if ($lyrics === '') {
+            return back()->withErrors([
+                'song' => 'No essay text available to generate a song.',
+            ]);
+        }
+
+        $existing = EssaySong::where('essay_submission_id', $essayRecord->id)->first();
+
+        if ($existing && $existing->status === 'ready') {
+            return back();
+        }
+
+        $now = now();
+        if (! $existing) {
+            EssaySong::create([
+                'essay_submission_id' => $essayRecord->id,
+                'user_id' => auth()->id(),
+                'child_id' => $essayRecord->child_id ?? null,
+                'status' => 'pending',
+                'provider' => 'suno',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            $existing->update([
+                'status' => 'pending',
+                'error_message' => null,
+                'updated_at' => $now,
+            ]);
+        }
+
+        try {
+            $event = new RetrieveEssaySong(
+                essayId: (int) $essayRecord->id,
+                title: 'Essay Song #' . $essayRecord->id,
+                lyrics: $lyrics,
+            );
+            $state = new WorkflowState();
+            (new EssaySongNode())($event, $state);
+
+            $payload = $state->get('song_payload') ?? [];
+            $audioUrl = $payload['audio_url'] ?? null;
+
+            if (! $audioUrl) {
+                throw new \RuntimeException('Suno response missing audio URL.');
+            }
+
+            $audioResponse = Http::timeout(60)->get($audioUrl);
+            if (! $audioResponse->successful()) {
+                throw new \RuntimeException('Failed to download song audio.');
+            }
+
+            $filename = 'songs/essay-' . $essayRecord->id . '-' . Str::random(6) . '.mp3';
+            Storage::disk('public')->put($filename, $audioResponse->body());
+
+            $songName = $payload['title'] ?? ('Essay Song #' . $essayRecord->id);
+
+            EssaySong::where('essay_submission_id', $essayRecord->id)
+                ->update([
+                    'status' => 'ready',
+                    'song_name' => $songName,
+                    'song_path' => $filename,
+                    'provider_song_id' => (string) ($payload['provider_song_id'] ?? ''),
+                    'updated_at' => now(),
+                ]);
+        } catch (\Throwable $exception) {
+            EssaySong::where('essay_submission_id', $essayRecord->id)
+                ->update([
+                    'status' => 'failed',
+                    'error_message' => $exception->getMessage(),
+                    'updated_at' => now(),
+                ]);
+
+            return back()->withErrors([
+                'song' => 'Song generation failed. Please try again.',
+            ]);
+        }
+
+        return back();
+    })->name('songs.generate');
 
 });

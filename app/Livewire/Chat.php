@@ -16,8 +16,15 @@ use NeuronAI\Chat\Attachments\Document;
 use NeuronAI\Chat\Attachments\Image;
 use NeuronAI\Chat\Enums\AttachmentContentType;
 use NeuronAI\Chat\Messages\UserMessage;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
+use App\Models\EssaySubmission;
+use App\Models\ReadingRecommendation;
+use App\Models\EssayAnalysis;
+use App\Neuron\Events\RetrieveReadingRecommendations;
+use App\Neuron\Nodes\ReadingRecommendationsNode;
+use App\Neuron\Events\RetrieveEssayAnalysis;
+use App\Neuron\Nodes\EssayAnalysisNode;
+use NeuronAI\Workflow\WorkflowState;
+use App\Support\OpenAiLogger;
 
 class Chat extends Component
 {
@@ -44,7 +51,7 @@ class Chat extends Component
     public function render(): View
     {
         return view('livewire.chat');
-    }
+  }
 
     public function updatedQueuedFiles(): void
     {
@@ -160,29 +167,8 @@ class Chat extends Component
         }
 
         $user = auth()->user();
-        if ($user && ($user->plan_type ?? 'free') === 'free') {
-            $trialEnds = $user->free_trial_ends_at ?? $user->created_at?->copy()->addMonth();
-            if ($trialEnds && Carbon::now()->greaterThan($trialEnds)) {
-                $this->addError('input', 'Your free trial has ended. Please upgrade to continue.');
-                $this->thinking = false;
-                return;
-            }
-
-            $submissionCount = DB::table('essay_submissions')
-                ->where('user_id', $user->id)
-                ->count();
-
-            if ($submissionCount >= 20) {
-                $this->addError('input', 'Free trial users can submit up to 20 essays in the first month.');
-                $this->thinking = false;
-                return;
-            }
-        }
-
         if ($user && $this->isDemoUser($user->email ?? '')) {
-            $submissionCount = DB::table('essay_submissions')
-                ->where('user_id', $user->id)
-                ->count();
+            $submissionCount = EssaySubmission::where('user_id', $user->id)->count();
 
             if ($submissionCount >= 2) {
                 $this->addError('input', 'Demo users can submit up to 2 essays.');
@@ -210,86 +196,6 @@ class Chat extends Component
     {
         $demoEmail = config('reading_college.demo_user_email');
         return $email === $demoEmail || Str::startsWith(Str::lower($email), 'demo+');
-    }
-
-    private function refreshReadingRecommendationsCache(?int $childId): void
-    {
-        $userId = auth()->id();
-        if (!$userId || !$childId) {
-            return;
-        }
-
-        $essays = DB::table('essay_submissions')
-            ->where('user_id', $userId)
-            ->where('child_id', $childId)
-            ->orderByDesc('uploaded_at')
-            ->get(['ocr_text', 'response_text', 'uploaded_at']);
-
-        $text = $essays
-            ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
-            ->filter()
-            ->implode("\n\n");
-
-        if (trim($text) === '') {
-            return;
-        }
-
-        $wordCount = str_word_count(strip_tags($text));
-        $targetWords = max(60, min(200, $wordCount ?: 80));
-
-        $child = auth()->user()?->children()->whereKey($childId)->first();
-        $childAge = null;
-        if ($child?->birth_year) {
-            $childAge = now()->year - $child->birth_year;
-        } elseif (property_exists($child, 'age') && $child?->age) {
-            $childAge = (int) $child->age;
-        }
-        $event = new \App\Neuron\Events\RetrieveReadingRecommendations(
-            essayText: $text,
-            targetWords: $targetWords,
-            childName: $child?->name,
-            childAge: $childAge,
-            childGender: $child?->gender
-        );
-
-        $state = new \NeuronAI\Workflow\WorkflowState();
-        (new \App\Neuron\Nodes\ReadingRecommendationsNode())($event, $state);
-
-        $raw = $state->get('reading_recommendations');
-        if (!is_string($raw)) {
-            return;
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded) || !isset($decoded['items']) || !is_array($decoded['items'])) {
-            return;
-        }
-
-        $items = array_map(function (array $item): array {
-            return [
-                'title' => (string) ($item['title'] ?? ''),
-                'type' => (string) ($item['type'] ?? 'Book'),
-                'paragraph' => (string) ($item['paragraph'] ?? ''),
-            ];
-        }, $decoded['items']);
-
-        $latestSubmissionAt = $essays->max('uploaded_at');
-        $essayCount = $essays->count();
-
-        DB::table('reading_recommendations')
-            ->updateOrInsert(
-                [
-                    'user_id' => $userId,
-                    'child_id' => $childId,
-                ],
-                [
-                    'essay_count' => $essayCount,
-                    'last_submission_at' => $latestSubmissionAt,
-                    'items' => json_encode($items),
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
     }
 
     public function clearAttachments(): void
@@ -320,6 +226,7 @@ class Chat extends Component
                     ->chat(new UserMessage($input))
                     ->getContent(),
             ];
+            OpenAiLogger::log('essay_correction', $input, $response);
             $this->lastResponse = $response;
             $this->thinking = false;
             $this->dispatch('scroll-bottom');
@@ -332,18 +239,17 @@ class Chat extends Component
                 }
             }
 
-            DB::table('essay_submissions')->insert([
+            EssaySubmission::create([
                 'user_id' => auth()->id(),
                 'child_id' => $childId ?: null,
-                'image_paths' => json_encode(array_values(array_merge($this->ocrImagePaths, $this->pdfPaths))),
+                'image_paths' => array_values(array_merge($this->ocrImagePaths, $this->pdfPaths)),
                 'uploaded_at' => now(),
                 'ocr_text' => $this->ocrPreview ?? $this->lastSubmittedText,
                 'response_text' => $response,
-                'created_at' => now(),
-                'updated_at' => now(),
             ]);
 
             $this->refreshReadingRecommendationsCache($childId);
+            $this->refreshEssayAnalysisCache($childId);
         } catch (\Throwable $exception) {
             $this->messages[] = [
                 'who' => 'ai',
@@ -399,6 +305,7 @@ class Chat extends Component
 
         $response = ImageOcrAgent::make()->chat($message);
         $text = trim((string) $response->getContent());
+        OpenAiLogger::log('image_ocr', $message->getContent(), $text);
 
         return $text !== '' ? $text : null;
     }
@@ -415,8 +322,144 @@ class Chat extends Component
 
         $response = PdfOcrAgent::make()->chat($message);
         $text = trim((string) $response->getContent());
+        OpenAiLogger::log('pdf_ocr', $message->getContent(), $text);
 
         return $text !== '' ? $text : null;
     }
 
+    private function refreshReadingRecommendationsCache(?int $childId): void
+    {
+        $userId = auth()->id();
+        if (!$userId || !$childId) {
+            return;
+        }
+
+        $essays = EssaySubmission::where('user_id', $userId)
+            ->where('child_id', $childId)
+            ->orderByDesc('uploaded_at')
+            ->get(['ocr_text', 'response_text', 'uploaded_at']);
+
+        $text = $essays
+            ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
+            ->filter()
+            ->implode("\n\n");
+
+        if (trim($text) === '') {
+            return;
+        }
+
+        $wordCount = str_word_count(strip_tags($text));
+        $targetWords = max(60, min(200, $wordCount ?: 80));
+
+        $child = auth()->user()?->children()->whereKey($childId)->first();
+        $childAge = null;
+        if ($child?->birth_year) {
+            $childAge = now()->year - $child->birth_year;
+        } elseif (property_exists($child, 'age') && $child?->age) {
+            $childAge = (int) $child->age;
+        }
+
+        $event = new RetrieveReadingRecommendations(
+            essayText: $text,
+            targetWords: $targetWords,
+            childName: $child?->name,
+            childAge: $childAge,
+            childGender: $child?->gender
+        );
+
+        $state = new WorkflowState();
+        (new ReadingRecommendationsNode())($event, $state);
+
+        $raw = $state->get('reading_recommendations');
+        if (!is_string($raw)) {
+            return;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded) || !isset($decoded['items']) || !is_array($decoded['items'])) {
+            return;
+        }
+
+        $recommendationLinks = array_map(function (array $item): array {
+            return [
+                'title' => (string) ($item['title'] ?? ''),
+                'type' => (string) ($item['type'] ?? 'Book'),
+                'paragraph' => (string) ($item['paragraph'] ?? ''),
+            ];
+        }, $decoded['items']);
+
+        if (empty($recommendationLinks)) {
+            return;
+        }
+
+        $latestSubmissionAt = $essays->max('uploaded_at');
+        $essayCount = $essays->count();
+
+        ReadingRecommendation::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'child_id' => $childId,
+            ],
+            [
+                'essay_count' => $essayCount,
+                'last_submission_at' => $latestSubmissionAt,
+                'items' => $recommendationLinks,
+            ]
+        );
+    }
+
+    private function refreshEssayAnalysisCache(?int $childId): void
+    {
+        $userId = auth()->id();
+        if (!$userId || !$childId) {
+            return;
+        }
+
+        $essays = EssaySubmission::where('user_id', $userId)
+            ->where('child_id', $childId)
+            ->orderByDesc('uploaded_at')
+            ->limit(5)
+            ->get(['ocr_text', 'response_text', 'uploaded_at']);
+
+        if ($essays->isEmpty()) {
+            return;
+        }
+
+        $text = $essays
+            ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
+            ->filter()
+            ->implode("\n\n");
+
+        if (trim($text) === '') {
+            return;
+        }
+
+        $event = new RetrieveEssayAnalysis(
+            essayText: $text,
+            essayCount: $essays->count()
+        );
+
+        $state = new WorkflowState();
+        (new EssayAnalysisNode())($event, $state);
+
+        $analysis = $state->get('essay_analysis');
+        if (!is_string($analysis) || trim($analysis) === '') {
+            return;
+        }
+
+        $latestSubmissionAt = $essays->max('uploaded_at');
+        $essayCount = $essays->count();
+
+        EssayAnalysis::updateOrCreate(
+            [
+                'user_id' => $userId,
+                'child_id' => $childId,
+            ],
+            [
+                'essay_count' => $essayCount,
+                'last_submission_at' => $latestSubmissionAt,
+                'analysis_text' => $analysis,
+            ]
+        );
+    }
 }

@@ -6,6 +6,7 @@ namespace App\Neuron\Nodes;
 
 use App\Neuron\Agents\ImageOcrAgent;
 use App\Neuron\Events\RetrieveImageOcr;
+use App\Support\OpenAiLogger;
 use NeuronAI\Chat\Attachments\Image;
 use NeuronAI\Chat\Enums\AttachmentContentType;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -27,6 +28,7 @@ class ImageOcrNode extends Node
             $response = ImageOcrAgent::make()->chat($message);
             $value = trim((string) $response->getContent());
             $text = $value !== '' ? $value : null;
+            OpenAiLogger::log('image_ocr', $message->getContent(), $text);
         }
 
         $state->set('image_ocr', $text);

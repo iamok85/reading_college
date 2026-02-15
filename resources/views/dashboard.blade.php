@@ -8,13 +8,19 @@
                 {{ __('Previous Essays') }}
             </a>
             <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Reading Recommendations') }}
+                {{ __('Readings') }}
+            </a>
+            <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Analysis') }}
+            </a>
+            <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Songs') }}
             </a>
         </div>
         @if (Auth::user()->children->isNotEmpty())
             <form class="mt-4 flex items-center gap-2 text-sm" method="GET" action="{{ url()->current() }}">
                 <label for="child_select_dashboard" class="text-gray-600">Child:</label>
-                <select id="child_select_dashboard" name="child_id" class="rounded-md border border-gray-300 px-2 py-1 text-sm" onchange="this.form.submit()" required>
+                <select id="child_select_dashboard" name="child_id" class="min-w-[280px] rounded-md border border-gray-300 px-2 py-1 text-sm" onchange="this.form.submit()" required>
                     @foreach (Auth::user()->children as $child)
                         <option value="{{ $child->id }}" {{ (int) ($selectedChildId ?? session('selected_child_id')) === $child->id ? 'selected' : '' }}>
                             {{ $child->name }}

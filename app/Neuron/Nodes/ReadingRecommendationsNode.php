@@ -4,6 +4,7 @@ namespace App\Neuron\Nodes;
 
 use App\Neuron\Agents\ReadingRecommendationsAgent;
 use App\Neuron\Events\RetrieveReadingRecommendations;
+use App\Support\OpenAiLogger;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Workflow\Node;
 use NeuronAI\Workflow\WorkflowState;
@@ -35,7 +36,10 @@ class ReadingRecommendationsNode extends Node
         $response = ReadingRecommendationsAgent::make()
             ->chat(new UserMessage($prompt));
 
-        $state->set('reading_recommendations', $response->getContent());
+        $content = $response->getContent();
+        OpenAiLogger::log('reading_recommendations', $prompt, $content);
+
+        $state->set('reading_recommendations', $content);
 
         return new RetrieveReadingRecommendations(
             essayText: $event->essayText,

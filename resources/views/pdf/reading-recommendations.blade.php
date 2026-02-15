@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Reading Recommendations</title>
+    <title>Readings</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 14px; color: #111; }
         h1 { font-size: 22px; margin-bottom: 10px; }
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>Reading Recommendations</h1>
+    <h1>Readings</h1>
     <div class="meta">Generated at: {{ $generatedAt->format('Y-m-d H:i') }}</div>
 
     @if (empty($items))

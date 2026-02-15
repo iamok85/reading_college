@@ -6,6 +6,7 @@ namespace App\Neuron\Nodes;
 
 use App\Neuron\Agents\PdfOcrAgent;
 use App\Neuron\Events\RetrievePdfOcr;
+use App\Support\OpenAiLogger;
 use NeuronAI\Chat\Attachments\Document;
 use NeuronAI\Chat\Enums\AttachmentContentType;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -27,6 +28,7 @@ class PdfOcrNode extends Node
             $response = PdfOcrAgent::make()->chat($message);
             $value = trim((string) $response->getContent());
             $text = $value !== '' ? $value : null;
+            OpenAiLogger::log('pdf_ocr', $message->getContent(), $text);
         }
 
         $state->set('pdf_ocr', $text);

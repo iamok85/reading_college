@@ -46,4 +46,9 @@ return [
         'secret_key' => env('RECAPTCHA_SECRET_KEY'),
     ],
 
+    'suno' => [
+        'url' => env('SUNO_API_URL'),
+        'key' => env('SUNO_API_KEY'),
+    ],
+
 ];

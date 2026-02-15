@@ -8,7 +8,13 @@
                 {{ __('Previous Essays') }}
             </a>
             <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Reading Recommendations') }}
+                {{ __('Readings') }}
+            </a>
+            <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Analysis') }}
+            </a>
+            <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Songs') }}
             </a>
             <a href="{{ route('billing') }}" class="hover:text-gray-900 {{ request()->routeIs('billing') ? 'text-gray-900 underline' : '' }}">
                 {{ __('Billing') }}

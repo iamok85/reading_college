@@ -79,6 +79,12 @@ return [
             'level' => env('OPENAI_LOG_LEVEL', 'info'),
             'replace_placeholders' => true,
         ],
+        'suno' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/suno.log'),
+            'level' => env('SUNO_LOG_LEVEL', 'info'),
+            'replace_placeholders' => true,
+        ],
 
         'slack' => [
             'driver' => 'slack',

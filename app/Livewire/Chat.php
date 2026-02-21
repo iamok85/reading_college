@@ -216,6 +216,29 @@ class Chat extends Component
         $this->resetErrorBag('input');
     }
 
+    public static function parseEssayCorrection(string $response): array
+    {
+        $spelling = null;
+        $grammar = null;
+        $corrected = null;
+
+        if (preg_match('/Spelling mistakes:\\s*(.*?)\\nGrammar mistakes:\\s*(.*?)\\nCorrected version:\\s*(.*)/s', $response, $matches)) {
+            $spelling = trim($matches[1]);
+            $grammar = trim($matches[2]);
+            $corrected = trim($matches[3]);
+        } elseif (preg_match('/1\\)\\s*Spelling mistakes:\\s*(.*?)\\n2\\)\\s*Grammar mistakes:\\s*(.*?)\\n3\\)\\s*Corrected version:\\s*(.*)/s', $response, $matches)) {
+            $spelling = trim($matches[1]);
+            $grammar = trim($matches[2]);
+            $corrected = trim($matches[3]);
+        }
+
+        return [
+            'spelling_mistakes' => $spelling,
+            'grammar_mistakes' => $grammar,
+            'corrected_version' => $corrected,
+        ];
+    }
+
     #[On('getEssayCorrectionResponse')]
     public function getEssayCorrectionResponse($input): void
     {
@@ -239,12 +262,17 @@ class Chat extends Component
                 }
             }
 
+            $parts = self::parseEssayCorrection($response);
+
             EssaySubmission::create([
                 'user_id' => auth()->id(),
                 'child_id' => $childId ?: null,
                 'image_paths' => array_values(array_merge($this->ocrImagePaths, $this->pdfPaths)),
                 'uploaded_at' => now(),
                 'ocr_text' => $this->ocrPreview ?? $this->lastSubmittedText,
+                'spelling_mistakes' => $parts['spelling_mistakes'],
+                'grammar_mistakes' => $parts['grammar_mistakes'],
+                'corrected_version' => $parts['corrected_version'],
                 'response_text' => $response,
             ]);
 

@@ -41,7 +41,7 @@
                     </div>
                     @if ($essayCount > 0)
                         <div class="flex flex-wrap items-center gap-3">
-                            <form method="POST" action="{{ route('analysis.refresh') }}">
+                            <form method="POST" action="{{ route('analysis.refresh') }}" id="analysis-refresh-form">
                                 @csrf
                                 <input type="hidden" name="child_id" value="{{ $selectedChildId }}">
                                 <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -67,11 +67,34 @@
                     @php
                         $analysisFormatted = preg_replace('/^Summary\\s*:?\\s*/mi', "Summary:\n", $analysis);
                     @endphp
-                    <pre class="mt-4 whitespace-pre-wrap text-sm text-gray-700">{{ $analysisFormatted }}</pre>
+                    <pre class="mt-4 max-w-full whitespace-pre-wrap break-words text-sm text-gray-700">{{ $analysisFormatted }}</pre>
                 @else
                     <p class="mt-4 text-sm text-gray-600">Analysis is not available yet.</p>
                 @endif
             </div>
         </div>
     </div>
+
+    <div id="analysis-loading-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+        <div class="w-full max-w-sm rounded-lg bg-white p-6 text-center shadow-lg">
+            <div class="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-600"></div>
+            <p class="mt-4 text-sm font-semibold text-gray-800">Refreshing analysis…</p>
+            <p class="mt-1 text-xs text-gray-500">Please wait a moment.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('analysis-refresh-form');
+            const modal = document.getElementById('analysis-loading-modal');
+            if (!form || !modal) {
+                return;
+            }
+
+            form.addEventListener('submit', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        });
+    </script>
 </x-app-layout>

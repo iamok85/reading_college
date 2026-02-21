@@ -94,8 +94,16 @@
                                     <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
                                 </div>
                                 <div class="mt-3">
-                                    <div class="text-sm font-semibold text-gray-800">Feedback</div>
-                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->response_text }}</pre>
+                                    <div class="text-sm font-semibold text-gray-800">Spelling Mistakes</div>
+                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->spelling_mistakes }}</pre>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="text-sm font-semibold text-gray-800">Grammar Mistakes</div>
+                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->grammar_mistakes }}</pre>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="text-sm font-semibold text-gray-800">Corrected Version</div>
+                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->corrected_version }}</pre>
                                 </div>
                             </div>
                         @endforeach

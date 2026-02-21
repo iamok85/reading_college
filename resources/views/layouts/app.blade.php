@@ -66,7 +66,10 @@
                                 <option value="prefer-not-to-say">Prefer not to say</option>
                             </select>
                         </div>
-                        <div class="flex justify-end">
+                        <div class="flex justify-end gap-3">
+                            <a href="{{ url('/') }}" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">
+                                Cancel
+                            </a>
                             <button type="submit" class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
                                 Save
                             </button>

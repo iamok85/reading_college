@@ -73,6 +73,16 @@ Route::get('/demo', function () {
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 Route::view('/investor', 'investor')->name('investor');
+Route::get('/login/clean', function (Illuminate\Http\Request $request) {
+    if (Auth::check()) {
+        Auth::logout();
+    }
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->name('login.clean');
 
 Route::middleware([
     'auth:sanctum',
@@ -575,7 +585,7 @@ Route::middleware([
             abort(404);
         }
 
-        $lyrics = trim((string) ($essayRecord->response_text ?: $essayRecord->ocr_text));
+        $lyrics = trim((string) $essayRecord->corrected_version);
         if ($lyrics === '') {
             return back()->withErrors([
                 'song' => 'No essay text available to generate a song.',
@@ -618,9 +628,21 @@ Route::middleware([
 
             $payload = $state->get('song_payload') ?? [];
             $audioUrl = $payload['audio_url'] ?? null;
+            $providerSongId = $payload['provider_song_id'] ?? $payload['task_id'] ?? null;
+
+            if (! $audioUrl && ! $providerSongId) {
+                throw new \RuntimeException('Suno response missing task ID.');
+            }
 
             if (! $audioUrl) {
-                throw new \RuntimeException('Suno response missing audio URL.');
+                EssaySong::where('essay_submission_id', $essayRecord->id)
+                    ->update([
+                        'status' => 'pending',
+                        'provider_song_id' => (string) ($providerSongId ?? ''),
+                        'updated_at' => now(),
+                    ]);
+
+                return back()->with('status', 'Song generation started. Check back soon.');
             }
 
             $audioResponse = Http::timeout(60)->get($audioUrl);
@@ -638,7 +660,7 @@ Route::middleware([
                     'status' => 'ready',
                     'song_name' => $songName,
                     'song_path' => $filename,
-                    'provider_song_id' => (string) ($payload['provider_song_id'] ?? ''),
+                    'provider_song_id' => (string) ($providerSongId ?? ''),
                     'updated_at' => now(),
                 ]);
         } catch (\Throwable $exception) {
@@ -646,6 +668,7 @@ Route::middleware([
                 ->update([
                     'status' => 'failed',
                     'error_message' => $exception->getMessage(),
+                    'provider_song_id' => (string) ($providerSongId ?? ''),
                     'updated_at' => now(),
                 ]);
 

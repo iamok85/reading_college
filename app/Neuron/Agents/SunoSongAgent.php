@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Neuron\Agents;
 
+use App\Support\SunoLogger;
 use Illuminate\Support\Facades\Http;
 use NeuronAI\Agent;
 use NeuronAI\Providers\AIProviderInterface;
@@ -25,7 +26,7 @@ class SunoSongAgent extends Agent
 
 
     /**
-     * @return array{audio_url:string,title?:string,provider_song_id?:string}
+     * @return array{audio_url?:string,title?:string,provider_song_id?:string,task_id?:string}
      */
     public function generate(string $title, string $lyrics): array
     {
@@ -37,8 +38,10 @@ class SunoSongAgent extends Agent
         }
 
         $payload = [
-            'title' => $title,
-            'lyrics' => $lyrics,
+            'prompt' => $lyrics,
+            'customMode' => false,
+            'instrumental' => false,
+            'model' => 'V4_5ALL',
         ];
 
         $response = Http::withToken($apiKey)
@@ -46,6 +49,10 @@ class SunoSongAgent extends Agent
             ->post($apiUrl, $payload);
 
         if (! $response->successful()) {
+            SunoLogger::log('suno_generate', $lyrics, $response->body(), [
+                'model' => $payload['model'],
+                'status' => $response->status(),
+            ]);
             throw new \RuntimeException('Suno request failed.');
         }
 
@@ -54,15 +61,20 @@ class SunoSongAgent extends Agent
             ?? data_get($data, 'data.0.audio_url')
             ?? data_get($data, 'song.audio_url')
             ?? null;
+        $taskId = data_get($data, 'data.taskId') ?? data_get($data, 'taskId');
 
-        if (! $audioUrl) {
-            throw new \RuntimeException('Suno response missing audio URL.');
-        }
-
-        return [
+        $result = [
             'audio_url' => $audioUrl,
-            'title' => data_get($data, 'title') ?? data_get($data, 'data.0.title'),
-            'provider_song_id' => (string) (data_get($data, 'id') ?? data_get($data, 'data.0.id') ?? ''),
+            'title' => data_get($data, 'title') ?? data_get($data, 'data.0.title') ?? $title,
+            'provider_song_id' => (string) ($taskId ?: (data_get($data, 'id') ?? data_get($data, 'data.0.id') ?? '')),
+            'task_id' => $taskId ? (string) $taskId : null,
         ];
+
+        SunoLogger::log('suno_generate', $lyrics, json_encode($data), [
+            'model' => $payload['model'],
+            'task_id' => $taskId,
+        ]);
+
+        return $result;
     }
 }

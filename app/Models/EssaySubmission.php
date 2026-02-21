@@ -14,6 +14,9 @@ class EssaySubmission extends Model
         'image_paths',
         'uploaded_at',
         'ocr_text',
+        'spelling_mistakes',
+        'grammar_mistakes',
+        'corrected_version',
         'response_text',
     ];
 

@@ -44,7 +44,7 @@
                 @endif
                 @if ($essayCount > 0)
                     <div class="mt-4 flex justify-end">
-                        <form method="POST" action="{{ route('reading-recommendations.refresh') }}">
+                        <form method="POST" action="{{ route('reading-recommendations.refresh') }}" id="readings-refresh-form">
                             @csrf
                             <input type="hidden" name="child_id" value="{{ $selectedChildId }}">
                             <button type="submit" class="mr-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -96,4 +96,27 @@
             </div>
         </div>
     </div>
+
+    <div id="readings-loading-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+        <div class="w-full max-w-sm rounded-lg bg-white p-6 text-center shadow-lg">
+            <div class="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-600"></div>
+            <p class="mt-4 text-sm font-semibold text-gray-800">Refreshing readings…</p>
+            <p class="mt-1 text-xs text-gray-500">Please wait a moment.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('readings-refresh-form');
+            const modal = document.getElementById('readings-loading-modal');
+            if (!form || !modal) {
+                return;
+            }
+
+            form.addEventListener('submit', () => {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        });
+    </script>
 </x-app-layout>

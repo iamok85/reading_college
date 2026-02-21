@@ -52,8 +52,11 @@
                             @endphp
                             <div class="rounded-md border border-gray-200 p-4">
                                 <div class="flex flex-wrap items-center justify-between gap-3">
-                                    <div class="text-sm text-gray-600">
-                                        Uploaded: {{ \Carbon\Carbon::parse($essay->uploaded_at)->format('Y-m-d H:i') }}
+                                    <div>
+                                        <div class="text-sm font-semibold text-gray-900">Essay #{{ $essay->id }}</div>
+                                        <div class="text-sm text-gray-600">
+                                            Uploaded: {{ \Carbon\Carbon::parse($essay->uploaded_at)->format('Y-m-d H:i') }}
+                                        </div>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-3 text-xs text-gray-600">
                                         <span class="rounded-full bg-gray-100 px-3 py-1 font-semibold text-gray-700">
@@ -65,6 +68,17 @@
                                             </a>
                                         @endif
                                     </div>
+                                </div>
+
+                                @php
+                                    $correctedText = trim((string) $essay->corrected_version);
+                                    if ($correctedText !== '' && preg_match('/3\\)\\s*\\*\\*?Corrected version\\*\\*?:?/i', $correctedText, $matches, PREG_OFFSET_CAPTURE)) {
+                                        $start = $matches[0][1] + strlen($matches[0][0]);
+                                        $correctedText = ltrim(substr($correctedText, $start));
+                                    }
+                                @endphp
+                                <div class="mt-3 text-sm text-gray-600">
+                                    {{ \Illuminate\Support\Str::limit($correctedText, 200) }}
                                 </div>
 
                                 @if ($song?->song_path && $song?->status === 'ready')

@@ -33,7 +33,7 @@
                 </div>
                 <div class="flex-1"></div>
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('login') }}" class="rounded-md px-3 py-1.5 font-semibold text-gray-700 hover:text-gray-900" style="border: 1px solid #e5e7eb;">
+                    <a href="{{ route('login.clean') }}" class="rounded-md px-3 py-1.5 font-semibold text-gray-700 hover:text-gray-900" style="border: 1px solid #e5e7eb;">
                         Login
                     </a>
                     <a href="{{ route('register') }}" class="rounded-md bg-blue-600 px-3 py-1.5 font-semibold text-white hover:bg-blue-500" style="background-color: #2563eb; color: #ffffff;">

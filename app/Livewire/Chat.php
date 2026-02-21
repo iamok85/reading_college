@@ -221,15 +221,24 @@ class Chat extends Component
         $spelling = null;
         $grammar = null;
         $corrected = null;
+        $normalized = str_replace('**', '', $response);
 
-        if (preg_match('/Spelling mistakes:\\s*(.*?)\\nGrammar mistakes:\\s*(.*?)\\nCorrected version:\\s*(.*)/s', $response, $matches)) {
+        if (preg_match('/^(?:\\d+\\)\\s*)?Spelling [Mm]istakes:\\s*(.*?)^(?:\\d+\\)\\s*)?Grammar [Mm]istakes:\\s*(.*?)^(?:\\d+\\)\\s*)?Corrected version:\\s*(.*)$/sm', $normalized, $matches)) {
             $spelling = trim($matches[1]);
             $grammar = trim($matches[2]);
             $corrected = trim($matches[3]);
-        } elseif (preg_match('/1\\)\\s*Spelling mistakes:\\s*(.*?)\\n2\\)\\s*Grammar mistakes:\\s*(.*?)\\n3\\)\\s*Corrected version:\\s*(.*)/s', $response, $matches)) {
-            $spelling = trim($matches[1]);
-            $grammar = trim($matches[2]);
-            $corrected = trim($matches[3]);
+        }
+
+        if ($spelling !== null) {
+            $spelling = preg_replace('/^\\s*-\\s*/m', '', $spelling);
+            $spelling = preg_replace('/\\s+$/m', '', $spelling);
+        }
+        if ($grammar !== null) {
+            $grammar = preg_replace('/^\\s*-\\s*/m', '', $grammar);
+            $grammar = preg_replace('/\\s+$/m', '', $grammar);
+        }
+        if ($corrected !== null) {
+            $corrected = preg_replace('/\\s+$/m', '', $corrected);
         }
 
         return [

@@ -41,9 +41,14 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', [
             'name' => 'Test User',
+            'child_name' => 'Test Child',
+            'child_birth_year' => now()->year - 10,
+            'child_gender' => 'female',
+            'plan_type' => 'free',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'recaptcha_token' => 'test-token',
             'terms' => Jetstream::hasTermsAndPrivacyPolicyFeature(),
         ]);
 

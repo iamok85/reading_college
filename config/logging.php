@@ -85,6 +85,12 @@ return [
             'level' => env('SUNO_LOG_LEVEL', 'info'),
             'replace_placeholders' => true,
         ],
+        'essay_pipeline' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/essay_pipeline.log'),
+            'level' => env('ESSAY_PIPELINE_LOG_LEVEL', 'info'),
+            'replace_placeholders' => true,
+        ],
 
         'slack' => [
             'driver' => 'slack',

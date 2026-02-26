@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Livewire\Chat;
+use App\Neuron\Nodes\EssayCorrectionNode;
 use PHPUnit\Framework\TestCase;
 
 class EssayCorrectionParserTest extends TestCase
@@ -10,6 +10,10 @@ class EssayCorrectionParserTest extends TestCase
     public function test_parses_spelling_grammar_and_corrected_sections(): void
     {
         $response = <<<TEXT
+0) **Original Writing:**  
+- Today we went to the park.  
+- It was fun.  
+
 1) **Spelling mistakes:**  
 - holidays → **Holidays** (capitalization)  
 - vacaitoncara → Vacaitoncara (assuming proper noun; spelling unclear, possibly “Vacationcara”)  
@@ -45,8 +49,13 @@ During the holidays at Vacaitoncara, on Monday our first activity was the jumpin
 After the other holiday at Vacaitincana, my friend messaged me, so we played Minecraft together. We played Bedwars and Skywars. Bedwars is a game where you have to break the other team’s bed.
 TEXT;
 
-        $parts = Chat::parseEssayCorrection($response);
+        $parts = EssayCorrectionNode::parseEssayCorrection($response);
 
+        $this->assertSame(
+            "Today we went to the park.\n"
+            . "It was fun.",
+            $parts['original_writing']
+        );
         $this->assertSame(
             "holidays → Holidays (capitalization)\n"
             . "vacaitoncara → Vacaitoncara (assuming proper noun; spelling unclear, possibly “Vacationcara”)\n"
@@ -78,7 +87,7 @@ TEXT;
             $parts['grammar_mistakes']
         );
         $this->assertSame(
-            "During the holidays at Vacaitoncara, on Monday our first activity was the jumping castle. After that, we did the rock wall. We were separated into groups. First, I was playing handball. When it was our turn, I went on the jumping castle. It was fun. We were playing tag, and it finished quickly.\n\n"
+            "During the holidays at Vacaitoncara, on Monday our first activity was the jumping castle. After that, we did the rock wall. We were separated into groups. First, I was playing handball. When it was our turn, I went on the jumping castle. It was fun. We were playing tag, and it finished quickly.\n"
             . "After the other holiday at Vacaitincana, my friend messaged me, so we played Minecraft together. We played Bedwars and Skywars. Bedwars is a game where you have to break the other team’s bed.",
             $parts['corrected_version']
         );
@@ -88,8 +97,9 @@ TEXT;
     {
         $response = "No structured response here.";
 
-        $parts = Chat::parseEssayCorrection($response);
+        $parts = EssayCorrectionNode::parseEssayCorrection($response);
 
+        $this->assertNull($parts['original_writing']);
         $this->assertNull($parts['spelling_mistakes']);
         $this->assertNull($parts['grammar_mistakes']);
         $this->assertNull($parts['corrected_version']);

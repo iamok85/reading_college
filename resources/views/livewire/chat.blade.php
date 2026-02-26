@@ -144,6 +144,39 @@
                 </svg>
                 <span>Processing attachment…</span>
             </div>
+
+            @if ($showProgressPanels)
+                <div class="space-y-4 pb-6">
+                    <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
+                        <div class="text-sm font-semibold text-gray-800">OCR Text</div>
+                        @if ($ocrTextPanel)
+                            <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $ocrTextPanel }}</pre>
+                        @else
+                            <p class="mt-2 text-sm text-gray-500">Waiting for OCR…</p>
+                        @endif
+                    </div>
+                    @if ($ocrTextPanel)
+                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
+                            <div class="text-sm font-semibold text-gray-800">Correction</div>
+                            @if ($correctionTextPanel)
+                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $correctionTextPanel }}</pre>
+                            @else
+                                <p class="mt-2 text-sm text-gray-500">Waiting for correction…</p>
+                            @endif
+                        </div>
+                    @endif
+                    @if ($correctionTextPanel)
+                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
+                            <div class="text-sm font-semibold text-gray-800">Analysis</div>
+                            @if ($analysisTextPanel)
+                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $analysisTextPanel }}</pre>
+                            @else
+                                <p class="mt-2 text-sm text-gray-500">Waiting for analysis…</p>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
             <div class="mt-4 flex justify-end">
                 <button
                     type="button"
@@ -153,13 +186,6 @@
                 >
                     Save as PDF
                 </button>
-            </div>
-            <div wire:loading wire:target="chat" class="mt-3 mx-auto flex w-full items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 text-center shadow-sm">
-                <svg class="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                </svg>
-                <span>Waiting for response…</span>
             </div>
             @if ($thinking)
                 <div class="mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm">
@@ -172,39 +198,6 @@
             @endif
         </form>
 
-        <!-- Scrollable Content -->
-        <div class="mt-6">
-            @if (! empty($images))
-                <div class="mb-6 rounded-md border border-gray-200 bg-white p-3 dark:border-gray-600 dark:bg-gray-800">
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-200">Image preview</p>
-                    <div class="mt-2 grid gap-3 sm:grid-cols-2">
-                        @foreach ($images as $index => $image)
-                            <img wire:key="image-preview-{{ $index }}" class="max-h-64 w-full rounded-md border border-gray-200 object-contain dark:border-gray-700" src="{{ $image->temporaryUrl() }}" alt="Selected image preview" />
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-            @foreach($messages as $message)
-                <!-- User -->
-                @if($message['who'] === 'user')
-                    <div class="bg-purple-800 text-white rounded p-4 my-12">
-                            {!! \Illuminate\Support\Str::markdown($message['content']) !!}
-                    </div>
-                @endif
-
-                <!--  LLM -->
-                @if($message['who'] === 'ai')
-                    <div class="my-12">
-                            {!! \Illuminate\Support\Str::markdown($message['content']) !!}
-                    </div>
-                @endif
-            @endforeach
-
-            @if($thinking)
-                <div class="my-12" wire:stream="response">
-                </div>
-                <img src="{{asset('/images/thinking.gif')}}" width="50" alt=""/>
-            @endif
         <script>
             (function () {
                 const resize = (el) => {

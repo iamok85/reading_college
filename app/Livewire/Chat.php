@@ -9,22 +9,22 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
-use App\Neuron\Agents\EssayCorrectionAgent;
-use App\Neuron\Agents\ImageOcrAgent;
-use App\Neuron\Agents\PdfOcrAgent;
-use NeuronAI\Chat\Attachments\Document;
-use NeuronAI\Chat\Attachments\Image;
-use NeuronAI\Chat\Enums\AttachmentContentType;
-use NeuronAI\Chat\Messages\UserMessage;
+use App\Neuron\Events\RetrieveEssayCorrection;
+use App\Neuron\Events\RetrieveEssayAnalysis;
+use App\Neuron\Events\RetrieveImageOcr;
+use App\Neuron\Events\RetrievePdfOcr;
+use App\Neuron\Nodes\EssayCorrectionNode;
+use App\Neuron\Nodes\EssayAnalysisNode;
+use App\Neuron\Nodes\EssayPipelineStartNode;
+use App\Neuron\Nodes\ImageOcrNode;
+use App\Neuron\Nodes\PdfOcrNode;
 use App\Models\EssaySubmission;
 use App\Models\ReadingRecommendation;
 use App\Models\EssayAnalysis;
 use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Neuron\Nodes\ReadingRecommendationsNode;
-use App\Neuron\Events\RetrieveEssayAnalysis;
-use App\Neuron\Nodes\EssayAnalysisNode;
 use NeuronAI\Workflow\WorkflowState;
-use App\Support\OpenAiLogger;
+use NeuronAI\Workflow\StartEvent;
 
 class Chat extends Component
 {
@@ -47,6 +47,13 @@ class Chat extends Component
     public ?string $ocrPreview = null;
     public array $ocrImagePaths = [];
     public bool $ocrLoading = false;
+
+    public ?string $ocrTextPanel = null;
+    public ?string $correctionTextPanel = null;
+    public ?string $analysisTextPanel = null;
+    public ?string $analysisEssayText = null;
+    public bool $showProgressPanels = false;
+    public ?int $lastEssaySubmissionId = null;
 
     public function render(): View
     {
@@ -115,6 +122,12 @@ class Chat extends Component
         $this->resetErrorBag();
         $this->messages = [];
         $this->lastResponse = null;
+        $this->ocrTextPanel = null;
+        $this->correctionTextPanel = null;
+        $this->analysisTextPanel = null;
+        $this->analysisEssayText = null;
+        $this->lastEssaySubmissionId = null;
+        $this->showProgressPanels = true;
 
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
@@ -129,42 +142,11 @@ class Chat extends Component
             'pdfs.*.mimes' => 'PDFs must be a valid PDF file.',
         ]);
 
-        if ((!empty($this->images) || !empty($this->pdfs)) && $this->ocrPreview === null) {
+        if (!empty($this->images) || !empty($this->pdfs)) {
             $this->ocrLoading = true;
-            $combinedText = [];
-
-            foreach ($this->ocrImagePaths as $path) {
-                $fullPath = Storage::disk('public')->path($path);
-                $text = $this->runImageOcr($fullPath);
-                if ($text) {
-                    $combinedText[] = $text;
-                }
-            }
-
-            foreach ($this->pdfPaths as $path) {
-                $fullPath = Storage::disk('public')->path($path);
-                $text = $this->runPdfOcr($fullPath);
-                if ($text) {
-                    $combinedText[] = $text;
-                }
-            }
-
-            $this->ocrPreview = trim(implode("\n\n", $combinedText));
-            $this->ocrLoading = false;
-
-            if ($this->ocrPreview === '') {
-                $this->ocrPreview = null;
-                $this->addError('queuedFiles', 'Unable to extract text from the attachment(s).');
-                return;
-            }
-
-            // Keep user input unchanged; do not auto-fill OCR text into input.
         }
 
         $composedInput = trim($this->input);
-        if (!empty($this->images) || !empty($this->pdfs)) {
-            $composedInput = trim((string) $this->ocrPreview);
-        }
 
         $user = auth()->user();
         if ($user && $this->isDemoUser($user->email ?? '')) {
@@ -177,17 +159,11 @@ class Chat extends Component
             }
         }
 
-        $this->messages[] = [
-            'who' => 'user',
-            'content' => $composedInput,
-        ];
-        $this->lastSubmittedText = $composedInput;
-
         $this->thinking = true;
 
         $this->dispatch('scroll-bottom');
 
-        $this->dispatch('getEssayCorrectionResponse', $composedInput);
+        $this->dispatch('getEssayOcrResponse', $composedInput);
         $this->input = '';
         $this->ocrLoading = false;
     }
@@ -208,6 +184,7 @@ class Chat extends Component
         $this->pdfPaths = [];
         $this->input = '';
         $this->ocrLoading = false;
+        $this->showProgressPanels = false;
     }
 
     public function clearInput(): void
@@ -216,53 +193,59 @@ class Chat extends Component
         $this->resetErrorBag('input');
     }
 
-    public static function parseEssayCorrection(string $response): array
+    #[On('getEssayOcrResponse')]
+    public function getEssayOcrResponse($input): void
     {
-        $spelling = null;
-        $grammar = null;
-        $corrected = null;
-        $normalized = str_replace('**', '', $response);
+        try {
+            $composedInput = trim((string) $input);
 
-        if (preg_match('/^(?:\\d+\\)\\s*)?Spelling [Mm]istakes:\\s*(.*?)^(?:\\d+\\)\\s*)?Grammar [Mm]istakes:\\s*(.*?)^(?:\\d+\\)\\s*)?Corrected version:\\s*(.*)$/sm', $normalized, $matches)) {
-            $spelling = trim($matches[1]);
-            $grammar = trim($matches[2]);
-            $corrected = trim($matches[3]);
-        }
+            if (!empty($this->ocrImagePaths) || !empty($this->pdfPaths)) {
+                $state = new WorkflowState([
+                    'input_text' => $composedInput,
+                    'image_paths' => $this->ocrImagePaths,
+                    'pdf_paths' => $this->pdfPaths,
+                ]);
 
-        if ($spelling !== null) {
-            $spelling = preg_replace('/^\\s*-\\s*/m', '', $spelling);
-            $spelling = preg_replace('/\\s+$/m', '', $spelling);
-        }
-        if ($grammar !== null) {
-            $grammar = preg_replace('/^\\s*-\\s*/m', '', $grammar);
-            $grammar = preg_replace('/\\s+$/m', '', $grammar);
-        }
-        if ($corrected !== null) {
-            $corrected = preg_replace('/\\s+$/m', '', $corrected);
-        }
+                $event = (new EssayPipelineStartNode())(new StartEvent(), $state);
+                while ($event instanceof RetrieveImageOcr || $event instanceof RetrievePdfOcr) {
+                    if ($event instanceof RetrieveImageOcr) {
+                        $event = (new ImageOcrNode())($event, $state);
+                        continue;
+                    }
+                    if ($event instanceof RetrievePdfOcr) {
+                        $event = (new PdfOcrNode())($event, $state);
+                        continue;
+                    }
+                }
 
-        return [
-            'spelling_mistakes' => $spelling,
-            'grammar_mistakes' => $grammar,
-            'corrected_version' => $corrected,
-        ];
+                $ocrText = $state->get('ocr_text');
+                if (!is_string($ocrText) || trim($ocrText) === '') {
+                    $this->addError('queuedFiles', 'Unable to extract text from the attachment(s).');
+                    $this->thinking = false;
+                    $this->ocrLoading = false;
+                    return;
+                }
+
+                $this->ocrPreview = trim($ocrText);
+                $this->ocrTextPanel = $this->ocrPreview;
+                $composedInput = $this->ocrPreview;
+            }
+
+            $this->dispatch('getEssayCorrectionResponse', $composedInput);
+        } catch (\Throwable $exception) {
+            $this->messages[] = [
+                'who' => 'ai',
+                'content' => 'Something went wrong while generating the OCR.',
+            ];
+            $this->thinking = false;
+            $this->ocrLoading = false;
+        }
     }
 
     #[On('getEssayCorrectionResponse')]
     public function getEssayCorrectionResponse($input): void
     {
         try {
-            $this->messages[] = [
-                'who' => 'ai',
-                'content' => $response = EssayCorrectionAgent::make()
-                    ->chat(new UserMessage($input))
-                    ->getContent(),
-            ];
-            OpenAiLogger::log('essay_correction', $input, $response);
-            $this->lastResponse = $response;
-            $this->thinking = false;
-            $this->dispatch('scroll-bottom');
-
             $childId = (int) session('selected_child_id', 0);
             if (!$childId) {
                 $childId = (int) auth()->user()?->children()->orderBy('id')->value('id');
@@ -271,22 +254,45 @@ class Chat extends Component
                 }
             }
 
-            $parts = self::parseEssayCorrection($response);
+            $composedInput = trim((string) $input);
 
-            EssaySubmission::create([
-                'user_id' => auth()->id(),
-                'child_id' => $childId ?: null,
-                'image_paths' => array_values(array_merge($this->ocrImagePaths, $this->pdfPaths)),
-                'uploaded_at' => now(),
-                'ocr_text' => $this->ocrPreview ?? $this->lastSubmittedText,
-                'spelling_mistakes' => $parts['spelling_mistakes'],
-                'grammar_mistakes' => $parts['grammar_mistakes'],
-                'corrected_version' => $parts['corrected_version'],
-                'response_text' => $response,
+            $state = new WorkflowState([
+                'pipeline_mode' => true,
+                'user_id' => (int) (auth()->id() ?? 0),
+                'child_id' => $childId,
+                'image_paths' => $this->ocrImagePaths,
+                'pdf_paths' => $this->pdfPaths,
+                'ocr_text' => $this->ocrPreview,
+                'analysis_text' => $composedInput,
+                'essay_count' => 1,
             ]);
+            (new EssayCorrectionNode())(new RetrieveEssayCorrection($composedInput), $state);
+            $response = $state->get('essay_correction');
+            $this->lastEssaySubmissionId = $state->get('essay_submission_id');
 
+            if (!is_string($response) || trim($response) === '') {
+                throw new \RuntimeException('Essay correction response is empty.');
+            }
+
+            $this->messages[] = [
+                'who' => 'user',
+                'content' => $composedInput,
+            ];
+            $this->lastSubmittedText = $composedInput;
+
+            $this->messages[] = [
+                'who' => 'ai',
+                'content' => $response,
+            ];
+            $this->lastResponse = $response;
+            $this->correctionTextPanel = $response;
+            $this->thinking = false;
+            $this->ocrLoading = false;
+            $this->dispatch('scroll-bottom');
             $this->refreshReadingRecommendationsCache($childId);
-            $this->refreshEssayAnalysisCache($childId);
+
+            $this->analysisEssayText = $composedInput;
+            $this->dispatch('getEssayAnalysisResponse');
         } catch (\Throwable $exception) {
             $this->messages[] = [
                 'who' => 'ai',
@@ -294,6 +300,43 @@ class Chat extends Component
             ];
             $this->lastResponse = null;
             $this->thinking = false;
+            $this->ocrLoading = false;
+        }
+    }
+
+    #[On('getEssayAnalysisResponse')]
+    public function getEssayAnalysisResponse(): void
+    {
+        try {
+            $childId = (int) session('selected_child_id', 0);
+            if (!$childId) {
+                $childId = (int) auth()->user()?->children()->orderBy('id')->value('id');
+                if ($childId) {
+                    session(['selected_child_id' => $childId]);
+                }
+            }
+
+            $analysisText = trim((string) ($this->analysisEssayText ?? $this->lastSubmittedText ?? ''));
+            if ($analysisText === '') {
+                return;
+            }
+
+            $state = new WorkflowState([
+                'pipeline_mode' => true,
+                'user_id' => (int) (auth()->id() ?? 0),
+                'child_id' => $childId,
+                'essay_count' => 1,
+                'essay_submission_id' => $this->lastEssaySubmissionId,
+            ]);
+            $event = new RetrieveEssayAnalysis($analysisText, 1);
+            (new EssayAnalysisNode())($event, $state);
+
+            $analysis = $state->get('essay_analysis');
+            if (is_string($analysis) && trim($analysis) !== '') {
+                $this->analysisTextPanel = $analysis;
+            }
+        } catch (\Throwable $exception) {
+            $this->analysisTextPanel = null;
         }
     }
 
@@ -327,41 +370,6 @@ class Chat extends Component
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, $filename);
-    }
-
-    private function runImageOcr(string $path): ?string
-    {
-        if (!is_file($path)) {
-            return null;
-        }
-
-        $mime = mime_content_type($path) ?: 'image/png';
-        $base64 = base64_encode((string) file_get_contents($path));
-        $message = new UserMessage('Extract all text from this image. Return only the text, preserving line breaks.');
-        $message->addAttachment(new Image($base64, AttachmentContentType::BASE64, $mime));
-
-        $response = ImageOcrAgent::make()->chat($message);
-        $text = trim((string) $response->getContent());
-        OpenAiLogger::log('image_ocr', $message->getContent(), $text);
-
-        return $text !== '' ? $text : null;
-    }
-
-    private function runPdfOcr(string $path): ?string
-    {
-        if (!is_file($path)) {
-            return null;
-        }
-
-        $base64 = base64_encode((string) file_get_contents($path));
-        $message = new UserMessage('Extract all text from this PDF. Return only the text, preserving line breaks.');
-        $message->addAttachment(new Document($base64, AttachmentContentType::BASE64, 'application/pdf'));
-
-        $response = PdfOcrAgent::make()->chat($message);
-        $text = trim((string) $response->getContent());
-        OpenAiLogger::log('pdf_ocr', $message->getContent(), $text);
-
-        return $text !== '' ? $text : null;
     }
 
     private function refreshReadingRecommendationsCache(?int $childId): void

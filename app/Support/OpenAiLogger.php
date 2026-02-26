@@ -9,6 +9,10 @@ class OpenAiLogger
 {
     public static function log(string $context, ?string $prompt, ?string $response, array $meta = []): void
     {
+        if (app()->environment('testing')) {
+            return;
+        }
+
         OpenAiLog::create([
             'user_id' => auth()->id(),
             'context' => $context,

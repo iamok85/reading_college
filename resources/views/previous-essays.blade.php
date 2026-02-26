@@ -93,6 +93,12 @@
                                     <div class="text-sm font-semibold text-gray-800">Original Writting</div>
                                     <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
                                 </div>
+                                @if ($essay->original_writing)
+                                    <div class="mt-3">
+                                        <div class="text-sm font-semibold text-gray-800">Original Writing</div>
+                                        <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->original_writing }}</pre>
+                                    </div>
+                                @endif
                                 <div class="mt-3">
                                     <div class="text-sm font-semibold text-gray-800">Spelling Mistakes</div>
                                     <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->spelling_mistakes }}</pre>
@@ -105,6 +111,12 @@
                                     <div class="text-sm font-semibold text-gray-800">Corrected Version</div>
                                     <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->corrected_version }}</pre>
                                 </div>
+                                @if ($essay->analysis_text)
+                                    <div class="mt-3">
+                                        <div class="text-sm font-semibold text-gray-800">Analysis</div>
+                                        <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->analysis_text }}</pre>
+                                    </div>
+                                @endif
                             </div>
                         @endforeach
                     </div>

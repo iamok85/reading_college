@@ -2,7 +2,7 @@
 
 namespace App\Neuron\Nodes;
 
-use App\Neuron\Agents\ReadingRecommendationsAgent;
+use App\Neuron\Agents\ResearchAgent;
 use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Support\OpenAiLogger;
 use NeuronAI\Chat\Messages\UserMessage;
@@ -33,7 +33,13 @@ class ReadingRecommendationsNode extends Node
             . implode(' ', $childContext) . "\n\n"
             . "Essays:\n{$event->essayText}";
 
-        $response = ReadingRecommendationsAgent::make()
+        $response = ResearchAgent::make()
+            ->setInstructions(
+                'You are a kids reading coach. Return a JSON object with key "items" containing an array of 6 '
+                . 'recommendations (3 books and 3 movies). Each item includes: type ("Book" or "Movie"), title, '
+                . 'and paragraph. Each paragraph must be a funny story that teaches knowledge and matches the target '
+                . 'word count (+/- 15%). Use age-appropriate vocabulary. Do not include markdown or extra keys.'
+            )
             ->chat(new UserMessage($prompt));
 
         $content = $response->getContent();

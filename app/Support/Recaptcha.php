@@ -10,6 +10,10 @@ class Recaptcha
 {
     public static function verify(?string $token, string $action, ?string $ip = null): bool
     {
+        if (app()->environment('testing')) {
+            return true;
+        }
+
         if (empty($token)) {
             return false;
         }

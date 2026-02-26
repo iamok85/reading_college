@@ -56,7 +56,6 @@
                     </a>
                 </div>
                 <h1 class="mt-6 text-3xl font-semibold text-gray-900">
-                    Writting Tracking · Reading Recommendation · Essay Share · Song Movie Scripting
                 </h1>
 
                 <div class="mt-10">

@@ -61,13 +61,16 @@
 
                 @if (! $essayCount)
                     <p class="mt-4 text-sm text-gray-600">Submit essays to generate analysis.</p>
-                @elseif (!empty($isRefreshing))
-                    <p class="mt-4 text-sm text-gray-600">Analysis is being prepared. Please check back soon.</p>
                 @elseif ($analysis)
                     @php
                         $analysisFormatted = preg_replace('/^Summary\\s*:?\\s*/mi', "Summary:\n", $analysis);
                     @endphp
                     <pre class="mt-4 max-w-full whitespace-pre-wrap break-words text-sm text-gray-700">{{ $analysisFormatted }}</pre>
+                    @if (!empty($isRefreshing))
+                        <p class="mt-4 text-sm text-gray-500">New analysis is being prepared. Please check back soon.</p>
+                    @endif
+                @elseif (!empty($isRefreshing))
+                    <p class="mt-4 text-sm text-gray-600">Analysis is being prepared. Please check back soon.</p>
                 @else
                     <p class="mt-4 text-sm text-gray-600">Analysis is not available yet.</p>
                 @endif

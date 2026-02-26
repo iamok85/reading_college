@@ -116,9 +116,13 @@ Route::middleware([
 
     Route::get('/dashboard', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
-
+        $analysis = EssayAnalysis::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('last_submission_at')
+            ->first();
         return view('dashboard', [
             'selectedChildId' => $childId,
+            'analysis' => $analysis,
         ]);
     })->name('dashboard');
 

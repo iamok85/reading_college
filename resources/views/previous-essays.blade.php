@@ -73,50 +73,60 @@
                                         ? $essay->image_paths
                                         : (json_decode($essay->image_paths, true) ?: []);
                                 @endphp
-                                @if (!empty($imagePaths))
+                                <div class="mt-4" data-tab-group="essay-{{ $essay->id }}">
+                                    <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+                                        <button type="button" class="tab-btn rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white" data-tab-target="attachments">Attachments</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="original">Original Text</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="spelling">Spelling</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="grammar">Grammar</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="corrected">Corrected</button>
+                                        @if ($essay->analysis_text)
+                                            <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="analysis">Analysis</button>
+                                        @endif
+                                    </div>
                                     <div class="mt-3">
-                                        <div class="text-sm font-semibold text-gray-800">Attachments</div>
-                                        <div class="mt-2 grid gap-3 sm:grid-cols-2">
-                                            @foreach ($imagePaths as $path)
-                                                @if (\Illuminate\Support\Str::endsWith($path, '.pdf'))
-                                                    <a class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-green-700 hover:bg-gray-100" href="{{ \Illuminate\Support\Facades\Storage::url($path) }}" target="_blank" rel="noopener">
-                                                        View PDF
-                                                    </a>
-                                                @else
-                                                    <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Essay image">
-                                                @endif
-                                            @endforeach
+                                        <div data-tab-panel="attachments">
+                                            @if (!empty($imagePaths))
+                                                <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                                                    @foreach ($imagePaths as $path)
+                                                        @if (\Illuminate\Support\Str::endsWith($path, '.pdf'))
+                                                            <a class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-green-700 hover:bg-gray-100" href="{{ \Illuminate\Support\Facades\Storage::url($path) }}" target="_blank" rel="noopener">
+                                                                View PDF
+                                                            </a>
+                                                        @else
+                                                            <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Essay image">
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <p class="text-sm text-gray-600">No attachments.</p>
+                                            @endif
                                         </div>
+                                        <div data-tab-panel="original" class="hidden">
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
+                                            @if ($essay->original_writing)
+                                                <div class="mt-3">
+                                                    <div class="text-xs font-semibold text-gray-600">Original Writing (AI)</div>
+                                                    <pre class="mt-1 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->original_writing }}</pre>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div data-tab-panel="spelling" class="hidden">
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->spelling_mistakes }}</pre>
+                                        </div>
+                                        <div data-tab-panel="grammar" class="hidden">
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->grammar_mistakes }}</pre>
+                                        </div>
+                                        <div data-tab-panel="corrected" class="hidden">
+                                            <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->corrected_version }}</pre>
+                                        </div>
+                                        @if ($essay->analysis_text)
+                                            <div data-tab-panel="analysis" class="hidden">
+                                                <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->analysis_text }}</pre>
+                                            </div>
+                                        @endif
                                     </div>
-                                @endif
-                                <div class="mt-3">
-                                    <div class="text-sm font-semibold text-gray-800">Original Writting</div>
-                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
                                 </div>
-                                @if ($essay->original_writing)
-                                    <div class="mt-3">
-                                        <div class="text-sm font-semibold text-gray-800">Original Writing</div>
-                                        <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->original_writing }}</pre>
-                                    </div>
-                                @endif
-                                <div class="mt-3">
-                                    <div class="text-sm font-semibold text-gray-800">Spelling Mistakes</div>
-                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->spelling_mistakes }}</pre>
-                                </div>
-                                <div class="mt-3">
-                                    <div class="text-sm font-semibold text-gray-800">Grammar Mistakes</div>
-                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->grammar_mistakes }}</pre>
-                                </div>
-                                <div class="mt-3">
-                                    <div class="text-sm font-semibold text-gray-800">Corrected Version</div>
-                                    <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->corrected_version }}</pre>
-                                </div>
-                                @if ($essay->analysis_text)
-                                    <div class="mt-3">
-                                        <div class="text-sm font-semibold text-gray-800">Analysis</div>
-                                        <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $essay->analysis_text }}</pre>
-                                    </div>
-                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -174,5 +184,32 @@
 
         overlay?.addEventListener('click', closeModal);
         cancelBtn?.addEventListener('click', closeModal);
+
+        const tabGroups = document.querySelectorAll('[data-tab-group]');
+        tabGroups.forEach((group) => {
+            const buttons = group.querySelectorAll('.tab-btn');
+            const panels = group.querySelectorAll('[data-tab-panel]');
+
+            const activate = (target) => {
+                buttons.forEach((btn) => {
+                    const isActive = btn.getAttribute('data-tab-target') === target;
+                    btn.classList.toggle('bg-gray-900', isActive);
+                    btn.classList.toggle('text-white', isActive);
+                    btn.classList.toggle('bg-gray-100', !isActive);
+                    btn.classList.toggle('text-gray-700', !isActive);
+                });
+                panels.forEach((panel) => {
+                    panel.classList.toggle('hidden', panel.getAttribute('data-tab-panel') !== target);
+                });
+            };
+
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => activate(btn.getAttribute('data-tab-target')));
+            });
+
+            if (buttons.length) {
+                activate(buttons[0].getAttribute('data-tab-target'));
+            }
+        });
     })();
 </script>

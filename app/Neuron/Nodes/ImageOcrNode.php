@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Neuron\Nodes;
 
-use App\Neuron\Agents\ImageOcrAgent;
+use App\Neuron\Agents\ResearchAgent;
 use App\Neuron\Events\RetrieveImageOcr;
 use App\Neuron\Events\RetrievePdfOcr;
 use App\Neuron\Events\RetrieveEssayCorrection;
@@ -25,16 +25,25 @@ class ImageOcrNode extends Node
             $resolvedPath = \Illuminate\Support\Facades\Storage::disk('public')->path($resolvedPath);
         }
         $text = null;
-    
+
         if (is_file($resolvedPath)) {
-            $base64 = base64_encode((string) file_get_contents($path));
+            $base64 = base64_encode((string) file_get_contents($resolvedPath));
             $message = new UserMessage('Extract all text from this image. Return only the text, preserving line breaks.');
             $message->addAttachment(new Image($base64, AttachmentContentType::BASE64, 'image/png'));
 
-            $response = ImageOcrAgent::make()->chat($message);
-            $value = trim((string) $response->getContent());
-            $text = $value !== '' ? $value : null;
-            OpenAiLogger::log('image_ocr', $message->getContent(), $text);
+            try {
+                OpenAiLogger::log('image_ocr', $message->getContent(), null, [
+                    'phase' => 'request',
+                ]);
+                $response = ResearchAgent::make()->chat($message);
+                $value = trim((string) $response->getContent());
+                $text = $value !== '' ? $value : null;
+                OpenAiLogger::log('image_ocr', $message->getContent(), $text);
+            } catch (\Throwable $exception) {
+                OpenAiLogger::log('image_ocr', $message->getContent(), null, [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $state->set('image_ocr', $text);
@@ -91,5 +100,5 @@ class ImageOcrNode extends Node
 
         return trim((string) ($state->get('input_text') ?? ''));
     }
-      
+
 }

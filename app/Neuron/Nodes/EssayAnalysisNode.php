@@ -22,13 +22,23 @@ class EssayAnalysisNode extends Node
             . "Format as short bullets and a final summary paragraph. Plain text only.\n\n"
             . "Essays:\n{$event->essayText}";
 
-        $response = ResearchAgent::make()
-            ->setInstructions(
-                'You are an educational psychologist assistant. Provide brief psychological and learning analysis. '
-                . 'Focus on strengths, challenges, emotional tone, topics of interest, and supportive suggestions. '
-                . 'Avoid medical diagnosis. Format as short bullets and a final summary paragraph. Plain text only.'
-            )
-            ->chat(new UserMessage($prompt));
+        try {
+            OpenAiLogger::log('essay_analysis', $prompt, null, [
+                'phase' => 'request',
+            ]);
+            $response = ResearchAgent::make()
+                ->setInstructions(
+                    'You are an educational psychologist assistant. Provide brief psychological and learning analysis. '
+                    . 'Focus on strengths, challenges, emotional tone, topics of interest, and supportive suggestions. '
+                    . 'Avoid medical diagnosis. Format as short bullets and a final summary paragraph. Plain text only.'
+                )
+                ->chat(new UserMessage($prompt));
+        } catch (\Throwable $exception) {
+            OpenAiLogger::log('essay_analysis', $prompt, null, [
+                'error' => $exception->getMessage(),
+            ]);
+            throw new \RuntimeException('Timed out while calling OpenAI for essay analysis.', 0, $exception);
+        }
 
         $content = $response->getContent();
         OpenAiLogger::log('essay_analysis', $prompt, $content);

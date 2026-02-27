@@ -2,29 +2,32 @@
 
 namespace App\Livewire;
 
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\View\View;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Livewire\Attributes\On;
-use Livewire\Component;
-use Livewire\WithFileUploads;
 use App\Neuron\Events\RetrieveEssayCorrection;
 use App\Neuron\Events\RetrieveEssayAnalysis;
+use App\Neuron\Events\RetrieveEssayImages;
 use App\Neuron\Events\RetrieveImageOcr;
 use App\Neuron\Events\RetrievePdfOcr;
+use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Neuron\Nodes\EssayCorrectionNode;
 use App\Neuron\Nodes\EssayAnalysisNode;
+use App\Neuron\Nodes\EssayImageNode;
 use App\Neuron\Nodes\EssayPipelineStartNode;
 use App\Neuron\Nodes\ImageOcrNode;
 use App\Neuron\Nodes\PdfOcrNode;
+use App\Neuron\Nodes\ReadingRecommendationsNode;
+use App\Models\EssayAnalysis;
 use App\Models\EssaySubmission;
 use App\Models\ReadingRecommendation;
-use App\Models\EssayAnalysis;
-use App\Neuron\Events\RetrieveReadingRecommendations;
-use App\Neuron\Nodes\ReadingRecommendationsNode;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Livewire\Attributes\On;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 use NeuronAI\Workflow\WorkflowState;
 use NeuronAI\Workflow\StartEvent;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class Chat extends Component
 {
@@ -54,11 +57,12 @@ class Chat extends Component
     public ?string $analysisEssayText = null;
     public bool $showProgressPanels = false;
     public ?int $lastEssaySubmissionId = null;
+    public array $generatedImagePaths = [];
 
     public function render(): View
     {
         return view('livewire.chat');
-  }
+    }
 
     public function updatedQueuedFiles(): void
     {
@@ -95,6 +99,7 @@ class Chat extends Component
         $this->ocrLoading = false;
         $this->messages = [];
         $this->thinking = false;
+        $this->generatedImagePaths = [];
 
         $user = auth()->user();
         $username = $user?->name ?? 'user';
@@ -127,6 +132,7 @@ class Chat extends Component
         $this->analysisTextPanel = null;
         $this->analysisEssayText = null;
         $this->lastEssaySubmissionId = null;
+        $this->generatedImagePaths = [];
         $this->showProgressPanels = true;
 
         $this->validate([
@@ -165,7 +171,6 @@ class Chat extends Component
 
         $this->dispatch('getEssayOcrResponse', $composedInput);
         $this->input = '';
-        $this->ocrLoading = false;
     }
 
     private function isDemoUser(string $email): bool
@@ -185,6 +190,7 @@ class Chat extends Component
         $this->input = '';
         $this->ocrLoading = false;
         $this->showProgressPanels = false;
+        $this->generatedImagePaths = [];
     }
 
     public function clearInput(): void
@@ -292,7 +298,12 @@ class Chat extends Component
             $this->refreshReadingRecommendationsCache($childId);
 
             $this->analysisEssayText = $composedInput;
-            $this->dispatch('getEssayAnalysisResponse');
+            $parts = EssayCorrectionNode::parseEssayCorrection((string) $response);
+            $correctedEssay = $parts['corrected_version'] ?: $composedInput;
+            $this->dispatch('essay:after-correction', [
+                'essayId' => $this->lastEssaySubmissionId,
+                'correctedEssay' => $correctedEssay,
+            ]);
         } catch (\Throwable $exception) {
             $this->messages[] = [
                 'who' => 'ai',
@@ -340,10 +351,28 @@ class Chat extends Component
         }
     }
 
-    public function downloadPdf()
+    #[On('getEssayImagesResponse')]
+    public function getEssayImagesResponse(int $essayId, string $correctedEssay): void
+    {
+        try {
+            $imageState = new WorkflowState([
+                'pipeline_mode' => false,
+            ]);
+            (new EssayImageNode())(
+                new RetrieveEssayImages($essayId, $correctedEssay),
+                $imageState
+            );
+            $submission = EssaySubmission::find($essayId);
+            $this->generatedImagePaths = $submission?->generated_image_paths ?? [];
+        } catch (\Throwable $exception) {
+            // Keep UI responsive even if image generation fails.
+        }
+    }
+
+    public function downloadPdf(): ?StreamedResponse
     {
         if (!$this->lastResponse) {
-            return;
+            return null;
         }
 
         $imageData = [];
@@ -361,6 +390,7 @@ class Chat extends Component
             'submittedText' => $this->lastSubmittedText,
             'ocrText' => $this->ocrPreview,
             'responseText' => $this->lastResponse,
+            'analysisText' => $this->analysisTextPanel,
             'images' => $imageData,
             'generatedAt' => now(),
         ])->setPaper('a4');
@@ -382,6 +412,7 @@ class Chat extends Component
         $essays = EssaySubmission::where('user_id', $userId)
             ->where('child_id', $childId)
             ->orderByDesc('uploaded_at')
+            ->limit(5)
             ->get(['ocr_text', 'response_text', 'uploaded_at']);
 
         $text = $essays

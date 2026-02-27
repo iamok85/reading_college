@@ -6,6 +6,7 @@ namespace App\Neuron\Workflows;
 
 use App\Neuron\Nodes\EssayAnalysisNode;
 use App\Neuron\Nodes\EssayCorrectionNode;
+use App\Neuron\Nodes\EssayImageNode;
 use App\Neuron\Nodes\EssayPipelineStartNode;
 use App\Neuron\Nodes\ImageOcrNode;
 use App\Neuron\Nodes\PdfOcrNode;
@@ -59,6 +60,7 @@ class EssayPipeline extends Workflow
             new ImageOcrNode(),
             new PdfOcrNode(),
             new EssayCorrectionNode(),
+            new EssayImageNode(),
             new EssayAnalysisNode(),
         ];
     }

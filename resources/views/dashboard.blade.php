@@ -32,7 +32,13 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-5xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8"></div>
+        <div class="max-w-5xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8">
+            @php
+                $generatedImagePaths = isset($latestEssay) && is_array($latestEssay->generated_image_paths)
+                    ? $latestEssay->generated_image_paths
+                    : (isset($latestEssay) ? (json_decode($latestEssay->generated_image_paths, true) ?: []) : []);
+            @endphp
+        </div>
 
         <div class="mt-8">
             <livewire:chat/>

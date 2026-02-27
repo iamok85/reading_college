@@ -72,20 +72,24 @@
                                     $imagePaths = is_array($essay->image_paths)
                                         ? $essay->image_paths
                                         : (json_decode($essay->image_paths, true) ?: []);
+                                    $generatedImagePaths = is_array($essay->generated_image_paths)
+                                        ? $essay->generated_image_paths
+                                        : (json_decode($essay->generated_image_paths, true) ?: []);
                                 @endphp
                                 <div class="mt-4" data-tab-group="essay-{{ $essay->id }}">
                                     <div class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
-                                        <button type="button" class="tab-btn rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white" data-tab-target="attachments">Attachments</button>
-                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="original">Original Text</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white" data-tab-target="original">Original Text</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="attachments">Attachments</button>
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="spelling">Spelling</button>
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="grammar">Grammar</button>
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="corrected">Corrected</button>
+                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="images">Generated Images</button>
                                         @if ($essay->analysis_text)
                                             <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="analysis">Analysis</button>
                                         @endif
                                     </div>
                                     <div class="mt-3">
-                                        <div data-tab-panel="attachments">
+                                        <div data-tab-panel="attachments" class="hidden">
                                             @if (!empty($imagePaths))
                                                 <div class="mt-2 grid gap-3 sm:grid-cols-2">
                                                     @foreach ($imagePaths as $path)
@@ -102,7 +106,27 @@
                                                 <p class="text-sm text-gray-600">No attachments.</p>
                                             @endif
                                         </div>
-                                        <div data-tab-panel="original" class="hidden">
+                                        <div data-tab-panel="images" class="hidden">
+                                            <div class="flex items-center justify-between">
+                                                <div class="text-xs font-semibold text-gray-600">Generated Images</div>
+                                                <form method="POST" action="{{ route('previous-essays.images.regenerate', $essay->id) }}">
+                                                    @csrf
+                                                    <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100">
+                                                        Refresh
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            @if (!empty($generatedImagePaths))
+                                                <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                                                    @foreach ($generatedImagePaths as $path)
+                                                        <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <p class="text-sm text-gray-600">No generated images yet.</p>
+                                            @endif
+                                        </div>
+                                        <div data-tab-panel="original">
                                             <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
                                             @if ($essay->original_writing)
                                                 <div class="mt-3">
@@ -208,7 +232,8 @@
             });
 
             if (buttons.length) {
-                activate(buttons[0].getAttribute('data-tab-target'));
+                const defaultButton = Array.from(buttons).find((btn) => btn.getAttribute('data-tab-target') === 'original');
+                activate((defaultButton ?? buttons[0]).getAttribute('data-tab-target'));
             }
         });
     })();

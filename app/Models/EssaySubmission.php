@@ -12,6 +12,7 @@ class EssaySubmission extends Model
         'user_id',
         'child_id',
         'image_paths',
+        'generated_image_paths',
         'uploaded_at',
         'ocr_text',
         'original_writing',
@@ -24,6 +25,7 @@ class EssaySubmission extends Model
 
     protected $casts = [
         'image_paths' => 'array',
+        'generated_image_paths' => 'array',
         'uploaded_at' => 'datetime',
     ];
 

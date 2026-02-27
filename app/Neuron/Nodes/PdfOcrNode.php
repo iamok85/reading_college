@@ -29,11 +29,20 @@ class PdfOcrNode extends Node
             $base64 = base64_encode((string) file_get_contents($resolvedPath));
             $message = new UserMessage('Extract all text from this PDF. Return only the text, preserving line breaks.');
             $message->addAttachment(new Document($base64, AttachmentContentType::BASE64, 'application/pdf'));
-            $response = ResearchAgent::make()->chat($message);
-            $value = trim((string) $response->getContent());
-            $text = $value !== '' ? $value : null;
+            try {
+                OpenAiLogger::log('pdf_ocr', $message->getContent(), null, [
+                    'phase' => 'request',
+                ]);
+                $response = ResearchAgent::make()->chat($message);
+                $value = trim((string) $response->getContent());
+                $text = $value !== '' ? $value : null;
     
-            OpenAiLogger::log('pdf_ocr', $message->getContent(), $text);
+                OpenAiLogger::log('pdf_ocr', $message->getContent(), $text);
+            } catch (\Throwable $exception) {
+                OpenAiLogger::log('pdf_ocr', $message->getContent(), null, [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $state->set('pdf_ocr', $text);

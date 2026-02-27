@@ -6,6 +6,7 @@ use App\Models\EssaySubmission;
 use App\Neuron\Agents\ResearchAgent;
 use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Events\RetrieveEssayCorrection;
+use App\Neuron\Events\RetrieveEssayImages;
 use App\Support\OpenAiLogger;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Workflow\Node;
@@ -56,16 +57,26 @@ class EssayCorrectionNode extends Node
         ];
     }
 
-    public function __invoke(RetrieveEssayCorrection $event, WorkflowState $state): RetrieveEssayCorrection|RetrieveEssayAnalysis
+    public function __invoke(RetrieveEssayCorrection $event, WorkflowState $state): RetrieveEssayCorrection|RetrieveEssayAnalysis|RetrieveEssayImages
     {
-        $response = ResearchAgent::make()
-            ->setInstructions(
-                'You are a writing assistant. For every response, do all of the following in plain text:\n'
-                . '1) Spelling mistakes: list each mistake and its correction. If none, say "None".\n'
-                . '2) Grammar mistakes: list each mistake and its correction. If none, say "None".\n'
-                . '3) Corrected version: provide the corrected writing.'
-            )
-            ->chat(new UserMessage($event->essay));
+        try {
+            OpenAiLogger::log('essay_correction', $event->essay, null, [
+                'phase' => 'request',
+            ]);
+            $response = ResearchAgent::make()
+                ->setInstructions(
+                    'You are a writing assistant. For every response, do all of the following in plain text:\n'
+                    . '1) Spelling mistakes: list each mistake and its correction. If none, say "None".\n'
+                    . '2) Grammar mistakes: list each mistake and its correction. If none, say "None".\n'
+                    . '3) Corrected version: provide the corrected writing.'
+                )
+                ->chat(new UserMessage($event->essay));
+        } catch (\Throwable $exception) {
+            OpenAiLogger::log('essay_correction', $event->essay, null, [
+                'error' => $exception->getMessage(),
+            ]);
+            throw new \RuntimeException('Timed out while calling OpenAI for essay correction.', 0, $exception);
+        }
 
         $content = $response->getContent();
         OpenAiLogger::log('essay_correction', $event->essay, $content);
@@ -92,13 +103,17 @@ class EssayCorrectionNode extends Node
                 'response_text' => $content,
             ]);
             $state->set('essay_submission_id', $submission->id);
+            $state->set('corrected_version', $parts['corrected_version']);
 
             $analysisText = trim((string) ($state->get('analysis_text') ?? $event->essay));
             if ($analysisText === '') {
                 $analysisText = $event->essay;
             }
             $essayCount = (int) ($state->get('essay_count') ?? 1);
-            return new RetrieveEssayAnalysis($analysisText, max(1, $essayCount));
+            return new RetrieveEssayImages(
+                essayId: $submission->id,
+                correctedEssay: $parts['corrected_version'] ?: $analysisText
+            );
         }
 
         return new RetrieveEssayCorrection($event->essay);

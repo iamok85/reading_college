@@ -21,6 +21,8 @@ use App\Neuron\Events\RetrieveEssaySong;
 use App\Neuron\Nodes\EssaySongNode;
 use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Nodes\EssayAnalysisNode;
+use App\Neuron\Events\RetrieveEssayImages;
+use App\Neuron\Nodes\EssayImageNode;
 use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
@@ -120,9 +122,14 @@ Route::middleware([
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
             ->orderByDesc('last_submission_at')
             ->first();
+        $latestEssay = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->orderByDesc('uploaded_at')
+            ->first();
         return view('dashboard', [
             'selectedChildId' => $childId,
             'analysis' => $analysis,
+            'latestEssay' => $latestEssay,
         ]);
     })->name('dashboard');
 
@@ -188,6 +195,32 @@ Route::middleware([
 
         return redirect()->route('previous-essays');
     })->name('previous-essays.delete');
+
+    Route::post('/previous-essays/{essay}/images/regenerate', function (Illuminate\Http\Request $request, EssaySubmission $essay) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+        $authorized = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->where('id', $essay->id)
+            ->exists();
+
+        if (! $authorized) {
+            abort(403);
+        }
+
+        $correctedEssay = trim((string) ($essay->corrected_version ?: $essay->ocr_text ?: $essay->response_text));
+        if ($correctedEssay === '') {
+            return back()->withErrors([
+                'essay_images' => 'Unable to regenerate images without corrected text.',
+            ]);
+        }
+
+        $state = new WorkflowState([
+            'pipeline_mode' => false,
+        ]);
+        (new EssayImageNode())(new RetrieveEssayImages($essay->id, $correctedEssay), $state);
+
+        return back();
+    })->name('previous-essays.images.regenerate');
 
     Route::post('/child-profile', function (Illuminate\Http\Request $request) {
         $minYear = now()->year - 18;

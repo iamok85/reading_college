@@ -45,5 +45,12 @@
         <pre>{{ $responseText }}</pre>
     </div>
 
+    @if (!empty($analysisText))
+        <h2>Analysis</h2>
+        <div class="box">
+            <pre>{{ $analysisText }}</pre>
+        </div>
+    @endif
+
 </body>
 </html>

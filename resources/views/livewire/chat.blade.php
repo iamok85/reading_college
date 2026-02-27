@@ -175,6 +175,20 @@
                             @endif
                         </div>
                     @endif
+                    @if ($correctionTextPanel)
+                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
+                            <div class="text-sm font-semibold text-gray-800">Generated Images</div>
+                            @if (!empty($generatedImagePaths))
+                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                    @foreach ($generatedImagePaths as $path)
+                                        <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             @endif
             <div class="mt-4 flex justify-end">
@@ -187,17 +201,20 @@
                     Save as PDF
                 </button>
             </div>
-            @if ($thinking)
-                <div class="mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm">
-                    <svg class="h-5 w-5 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                    </svg>
-                    <span>Waiting for response…</span>
-                </div>
-            @endif
-        </form>
+</form>
 
+<script>
+    window.addEventListener('essay:after-correction', (event) => {
+        const payload = event.detail ?? {};
+        // Trigger analysis and image generation in separate Livewire requests
+        if (window.Livewire?.dispatch) {
+            window.Livewire.dispatch('getEssayAnalysisResponse');
+            if (payload.essayId && payload.correctedEssay) {
+                window.Livewire.dispatch('getEssayImagesResponse', payload.essayId, payload.correctedEssay);
+            }
+        }
+    });
+</script>
         <script>
             (function () {
                 const resize = (el) => {

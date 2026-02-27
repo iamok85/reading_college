@@ -160,6 +160,18 @@
                             <div class="text-sm font-semibold text-gray-800">Correction</div>
                             @if ($correctionTextPanel)
                                 <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $correctionTextPanel }}</pre>
+                                <div class="mt-4 border-t border-gray-100 pt-4">
+                                    <div class="text-sm font-semibold text-gray-800">Generated Images</div>
+                                    @if (!empty($generatedImagePaths))
+                                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                            @foreach ($generatedImagePaths as $path)
+                                                <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
+                                    @endif
+                                </div>
                             @else
                                 <p class="mt-2 text-sm text-gray-500">Waiting for correction…</p>
                             @endif
@@ -173,18 +185,6 @@
                             @else
                                 <p class="mt-2 text-sm text-gray-500">Waiting for analysis…</p>
                             @endif
-                            <div class="mt-4 border-t border-gray-100 pt-4">
-                                <div class="text-sm font-semibold text-gray-800">Generated Images</div>
-                                @if (!empty($generatedImagePaths))
-                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                        @foreach ($generatedImagePaths as $path)
-                                            <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
-                                @endif
-                            </div>
                         </div>
                     @endif
                 </div>
@@ -202,16 +202,31 @@
 </form>
 
 <script>
-    window.addEventListener('essay:after-correction', (event) => {
-        const payload = event.detail ?? {};
-        // Trigger analysis and image generation in separate Livewire requests
-        if (window.Livewire?.dispatch) {
-            window.Livewire.dispatch('getEssayAnalysisResponse');
-            if (payload.essayId && payload.correctedEssay) {
-                window.Livewire.dispatch('getEssayImagesResponse', payload.essayId, payload.correctedEssay);
+    if (!window.__essayAfterCorrectionListener) {
+        window.__essayAfterCorrectionListener = true;
+        window.addEventListener('essay:after-correction', (event) => {
+            let payload = event.detail ?? {};
+            if (Array.isArray(payload) && payload.length > 0) {
+                payload = payload[0];
             }
-        }
-    });
+
+            // Trigger image generation first
+            if (window.Livewire?.dispatch) {
+                if (payload?.essayId && payload?.correctedEssay) {
+                    window.Livewire.dispatch('getEssayImagesResponse', {
+                        essayId: payload.essayId,
+                        correctedEssay: payload.correctedEssay,
+                    });
+                }
+            }
+        });
+
+        window.addEventListener('analysis:after-images', () => {
+            if (window.Livewire?.dispatch) {
+                window.Livewire.dispatch('getEssayAnalysisResponse', {});
+            }
+        });
+    }
 </script>
         <script>
             (function () {

@@ -363,6 +363,7 @@ class Chat extends Component
             );
             $submission = EssaySubmission::find($essayId);
             $this->generatedImagePaths = $submission?->generated_image_paths ?? [];
+            $this->dispatch('analysis:after-images');
         } catch (\Throwable $exception) {
             // Keep UI responsive even if image generation fails.
         }

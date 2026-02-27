@@ -6,10 +6,11 @@ use App\Models\EssaySubmission;
 use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Events\RetrieveEssayImages;
 use App\Support\OpenAiLogger;
-use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Storage;
 use NeuronAI\Workflow\Node;
 use NeuronAI\Workflow\WorkflowState;
+use App\Neuron\Agents\EssayImageAgent;
+use NeuronAI\Chat\Messages\UserMessage;
 
 class EssayImageNode extends Node
 {
@@ -59,30 +60,10 @@ class EssayImageNode extends Node
 
     private function generateImages(int $essayId, string $prompt): array
     {
-        $apiKey = $_ENV['OPENAI_API_KEY'] ?? null;
-        if (!$apiKey) {
-            return [];
-        }
-
-        $client = new Client([
-            'base_uri' => 'https://api.openai.com/v1/',
-            'timeout' => 60,
-            'connect_timeout' => 10,
-        ]);
-
         try {
-            $response = $client->post('images/generations', [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $apiKey,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'model' => 'gpt-image-1.5',
-                    'prompt' => $prompt,
-                    'n' => 1,
-                    'size' => '1024x1024',
-                ],
-            ]);
+            $response = EssayImageAgent::make()->chat(new UserMessage($prompt));
+            $payload = $response->getContent();
+            $payload = is_string($payload) ? (json_decode($payload, true) ?? []) : [];
         } catch (\Throwable $exception) {
             OpenAiLogger::log('essay_images', $prompt, null, [
                 'error' => $exception->getMessage(),
@@ -90,8 +71,7 @@ class EssayImageNode extends Node
             return [];
         }
 
-        $payload = json_decode((string) $response->getBody(), true);
-        $images = $payload['data'] ?? [];
+        $images = is_array($payload) ? ($payload['data'] ?? []) : [];
         if (!is_array($images) || empty($images)) {
             OpenAiLogger::log('essay_images', $prompt, json_encode($payload), [
                 'error' => 'No images returned.',

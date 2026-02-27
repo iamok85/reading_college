@@ -109,7 +109,7 @@
                                         <div data-tab-panel="images" class="hidden">
                                             <div class="flex items-center justify-between">
                                                 <div class="text-xs font-semibold text-gray-600">Generated Images</div>
-                                                <form class="image-refresh-form" method="POST" action="{{ route('previous-essays.images.regenerate', $essay->id) }}">
+                                                <form class="image-refresh-form" method="POST" action="{{ route('previous-essays.images.regenerate', $essay->id) }}" data-essay-id="{{ $essay->id }}">
                                                     @csrf
                                                     <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100">
                                                         Refresh
@@ -213,6 +213,7 @@
         tabGroups.forEach((group) => {
             const buttons = group.querySelectorAll('.tab-btn');
             const panels = group.querySelectorAll('[data-tab-panel]');
+            const groupId = group.getAttribute('data-tab-group');
 
             const activate = (target) => {
                 buttons.forEach((btn) => {
@@ -225,6 +226,10 @@
                 panels.forEach((panel) => {
                     panel.classList.toggle('hidden', panel.getAttribute('data-tab-panel') !== target);
                 });
+
+                if (groupId) {
+                    sessionStorage.setItem(`essay-tab-${groupId}`, target);
+                }
             };
 
             buttons.forEach((btn) => {
@@ -232,8 +237,13 @@
             });
 
             if (buttons.length) {
-                const defaultButton = Array.from(buttons).find((btn) => btn.getAttribute('data-tab-target') === 'original');
-                activate((defaultButton ?? buttons[0]).getAttribute('data-tab-target'));
+                const stored = groupId ? sessionStorage.getItem(`essay-tab-${groupId}`) : null;
+                if (stored && Array.from(buttons).some((btn) => btn.getAttribute('data-tab-target') === stored)) {
+                    activate(stored);
+                } else {
+                    const defaultButton = Array.from(buttons).find((btn) => btn.getAttribute('data-tab-target') === 'original');
+                    activate((defaultButton ?? buttons[0]).getAttribute('data-tab-target'));
+                }
             }
         });
 
@@ -241,6 +251,10 @@
         const imageModal = document.getElementById('image-refresh-modal');
         refreshForms.forEach((form) => {
             form.addEventListener('submit', () => {
+                const essayId = form.getAttribute('data-essay-id');
+                if (essayId) {
+                    sessionStorage.setItem(`essay-tab-essay-${essayId}`, 'images');
+                }
                 if (imageModal) {
                     imageModal.classList.remove('hidden');
                     imageModal.classList.add('flex');

@@ -60,8 +60,9 @@ class EssayPipeline extends Workflow
             new ImageOcrNode(),
             new PdfOcrNode(),
             new EssayCorrectionNode(),
-            new EssayAnalysisNode(),
-            new EssayImageNode()
+            new EssayImageNode(),
+            new EssayAnalysisNode()
+    
         ];
     }
 }

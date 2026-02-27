@@ -32,6 +32,23 @@
                     </div>
                 </div>
                 <div class="flex-1"></div>
+                <nav class="flex flex-wrap items-center gap-6 text-sm font-semibold text-gray-700">
+                    <a href="{{ route('feeds') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds') ? 'text-gray-900 underline' : '' }}">
+                        Feeds
+                    </a>
+                    <a href="{{ route('about') }}" class="hover:text-gray-900 {{ request()->routeIs('about') ? 'text-gray-900 underline' : '' }}">
+                        About
+                    </a>
+                    <a href="{{ route('contact') }}" class="hover:text-gray-900 {{ request()->routeIs('contact') ? 'text-gray-900 underline' : '' }}">
+                        Contact
+                    </a>
+                    <a href="{{ route('demo') }}" class="hover:text-gray-900 {{ request()->routeIs('demo') ? 'text-gray-900 underline' : '' }}">
+                        Demo
+                    </a>
+                    <a href="{{ route('plans') }}" class="hover:text-gray-900 {{ request()->routeIs('plans') ? 'text-gray-900 underline' : '' }}">
+                        Plans
+                    </a>
+                </nav>
                 <div class="flex items-center gap-3">
                     <a href="{{ route('login.clean') }}" class="rounded-md px-3 py-1.5 font-semibold text-gray-700 hover:text-gray-900" style="border: 1px solid #e5e7eb;">
                         Login
@@ -42,43 +59,55 @@
                 </div>
             </div>
         </header>
-        <main class="flex flex-1 items-center justify-center px-6">
-            <div class="-mt-[400px] max-w-2xl text-center">
-                <div class="-mt-24 flex flex-wrap items-center justify-center gap-3">
-                    <a href="{{ route('about') }}" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:border-gray-300">
-                        About
-                    </a>
-                    <a href="{{ route('contact') }}" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:border-gray-300">
-                        Contact
-                    </a>
-                    <a href="{{ route('demo') }}" class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm hover:border-gray-300">
-                        Demo
-                    </a>
-                </div>
-                <h1 class="mt-6 text-3xl font-semibold text-gray-900">
+        <main class="flex flex-1 flex-col items-center px-6 py-12">
+            <div class="max-w-3xl text-center">
+                <h1 class="text-3xl font-semibold text-gray-900">
+                    Share kids’ writing wins with the community.
                 </h1>
+                <p class="mt-3 text-base text-gray-600">
+                    Browse real corrected essays and illustrations shared by families, and see what learning looks like in action.
+                </p>
+            </div>
 
-                <div class="mt-10">
-                    <h2 class="text-lg font-semibold text-gray-900">Plans</h2>
-                    <p class="mt-2 text-sm text-gray-600">All plans include the first month free, then billed monthly.</p>
-                    <div class="mt-6 flex flex-wrap items-stretch justify-center gap-4">
-                        <div class="w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm sm:w-48">
-                            <div class="text-sm font-semibold text-gray-700">Silver</div>
-                            <div class="mt-2 text-2xl font-semibold text-gray-900">$10</div>
-                            <div class="text-xs text-gray-500">20 submissions / month</div>
-                        </div>
-                        <div class="w-full rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-left shadow-sm sm:w-48">
-                            <div class="text-sm font-semibold text-indigo-700">Gold</div>
-                            <div class="mt-2 text-2xl font-semibold text-gray-900">$20</div>
-                            <div class="text-xs text-gray-600">50 submissions / month</div>
-                        </div>
-                        <div class="w-full rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm sm:w-48">
-                            <div class="text-sm font-semibold text-gray-700">Premium</div>
-                            <div class="mt-2 text-2xl font-semibold text-gray-900">$30</div>
-                            <div class="text-xs text-gray-500">Unlimited submissions</div>
-                        </div>
-                    </div>
+            <div class="mt-10 w-full max-w-5xl">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Latest shared essays</h2>
+                    <a class="text-sm font-semibold text-blue-600 hover:text-blue-500" href="{{ route('feeds') }}">
+                        View all
+                    </a>
                 </div>
+
+                @if (empty($items) || $items->isEmpty())
+                    <div class="mt-4 rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                        No shared essays yet.
+                    </div>
+                @else
+                    <div class="mt-4 grid gap-6 md:grid-cols-3">
+                        @foreach ($items as $item)
+                            <div class="rounded-lg border border-gray-200 bg-white p-5">
+                                <div class="flex items-center justify-between text-xs text-gray-500">
+                                    <div class="font-semibold text-gray-700">
+                                        {{ $item->child_name ?? 'Child' }}
+                                    </div>
+                                    <span>{{ optional($item->shared_at)->format('Y-m-d') }}</span>
+                                </div>
+                                @if ($item->image_path)
+                                    <img
+                                        class="mt-3 rounded-md border border-gray-200 object-cover"
+                                        style="width: 250px; height: 250px;"
+                                        src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}"
+                                        alt="Shared essay image"
+                                    >
+                                @endif
+                                @if ($item->corrected_text)
+                                    <p class="mt-3 text-sm text-gray-600 line-clamp-4">
+                                        {{ $item->corrected_text }}
+                                    </p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </main>
     </body>

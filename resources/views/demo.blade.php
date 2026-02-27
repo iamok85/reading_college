@@ -1,15 +1,20 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-center gap-6 text-sm font-semibold text-gray-700">
-            <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Dashboard') }}
+            <a href="{{ route('feeds') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Feeds') }}
             </a>
-            <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Previous Essays') }}
-            </a>
-            <span class="text-gray-900 underline">
-                {{ __('Demo') }}
-            </span>
+            @auth
+                <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Dashboard') }}
+                </a>
+                <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Previous Essays') }}
+                </a>
+                <span class="text-gray-900 underline">
+                    {{ __('Demo') }}
+                </span>
+            @endauth
         </div>
     </x-slot>
 

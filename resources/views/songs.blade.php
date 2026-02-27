@@ -1,21 +1,26 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-wrap items-center gap-6 text-sm font-semibold text-gray-700">
-            <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Dashboard') }}
+            <a href="{{ route('feeds') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Feeds') }}
             </a>
-            <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Previous Essays') }}
-            </a>
-            <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Readings') }}
-            </a>
-            <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Analysis') }}
-            </a>
-            <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Songs') }}
-            </a>
+            @auth
+                <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Dashboard') }}
+                </a>
+                <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Previous Essays') }}
+                </a>
+                <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Readings') }}
+                </a>
+                <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Analysis') }}
+                </a>
+                <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Songs') }}
+                </a>
+            @endauth
         </div>
         @if (Auth::user()->children->isNotEmpty())
             <form class="mt-4 flex items-center gap-2 text-sm" method="GET" action="{{ url()->current() }}">

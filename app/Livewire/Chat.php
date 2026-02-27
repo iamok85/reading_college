@@ -58,6 +58,7 @@ class Chat extends Component
     public bool $showProgressPanels = false;
     public ?int $lastEssaySubmissionId = null;
     public array $generatedImagePaths = [];
+    public bool $showOcrPanel = false;
 
     public function render(): View
     {
@@ -100,6 +101,7 @@ class Chat extends Component
         $this->messages = [];
         $this->thinking = false;
         $this->generatedImagePaths = [];
+        $this->showOcrPanel = false;
 
         $user = auth()->user();
         $username = $user?->name ?? 'user';
@@ -134,6 +136,7 @@ class Chat extends Component
         $this->lastEssaySubmissionId = null;
         $this->generatedImagePaths = [];
         $this->showProgressPanels = true;
+        $this->showOcrPanel = false;
 
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
@@ -150,6 +153,7 @@ class Chat extends Component
 
         if (!empty($this->images) || !empty($this->pdfs)) {
             $this->ocrLoading = true;
+            $this->showOcrPanel = true;
         }
 
         $composedInput = trim($this->input);
@@ -169,7 +173,11 @@ class Chat extends Component
 
         $this->dispatch('scroll-bottom');
 
-        $this->dispatch('getEssayOcrResponse', $composedInput);
+        if ($this->showOcrPanel) {
+            $this->dispatch('getEssayOcrResponse', $composedInput);
+        } else {
+            $this->dispatch('getEssayCorrectionResponse', $composedInput);
+        }
         $this->input = '';
     }
 
@@ -191,6 +199,7 @@ class Chat extends Component
         $this->ocrLoading = false;
         $this->showProgressPanels = false;
         $this->generatedImagePaths = [];
+        $this->showOcrPanel = false;
     }
 
     public function clearInput(): void

@@ -147,15 +147,17 @@
 
             @if ($showProgressPanels)
                 <div class="space-y-4 pb-6">
-                    <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
-                        <div class="text-sm font-semibold text-gray-800">OCR Text</div>
-                        @if ($ocrTextPanel)
-                            <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $ocrTextPanel }}</pre>
-                        @else
-                            <p class="mt-2 text-sm text-gray-500">Waiting for OCR…</p>
-                        @endif
-                    </div>
-                    @if ($ocrTextPanel)
+                    @if ($showOcrPanel)
+                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
+                            <div class="text-sm font-semibold text-gray-800">OCR Text</div>
+                            @if ($ocrTextPanel)
+                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $ocrTextPanel }}</pre>
+                            @else
+                                <p class="mt-2 text-sm text-gray-500">Waiting for OCR…</p>
+                            @endif
+                        </div>
+                    @endif
+                    @if ($showOcrPanel ? $ocrTextPanel : true)
                         <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
                             <div class="text-sm font-semibold text-gray-800">Correction</div>
                             @if ($correctionTextPanel)
@@ -189,7 +191,19 @@
                     @endif
                 </div>
             @endif
-            <div class="mt-4 flex justify-end">
+            <div class="mt-4 flex justify-end gap-2">
+                @if ($lastEssaySubmissionId)
+                    <form method="POST" action="{{ route('previous-essays.share', $lastEssaySubmissionId) }}" class="inline-flex items-center">
+                        @csrf
+                        <button
+                            type="submit"
+                            class="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            @disabled(!$lastEssaySubmissionId || $ocrLoading || $thinking)
+                        >
+                            Share
+                        </button>
+                    </form>
+                @endif
                 <button
                     type="button"
                     wire:click="downloadPdf"

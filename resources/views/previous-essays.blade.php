@@ -1,21 +1,26 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center gap-6 text-sm font-semibold text-gray-700">
-            <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Dashboard') }}
+            <a href="{{ route('feeds') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Feeds') }}
             </a>
-            <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Previous Essays') }}
-            </a>
-            <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Readings') }}
-            </a>
-            <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Analysis') }}
-            </a>
-            <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
-                {{ __('Songs') }}
-            </a>
+            @auth
+                <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Dashboard') }}
+                </a>
+                <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Previous Essays') }}
+                </a>
+                <a href="{{ route('reading-recommendations') }}" class="hover:text-gray-900 {{ request()->routeIs('reading-recommendations') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Readings') }}
+                </a>
+                <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Analysis') }}
+                </a>
+                <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Songs') }}
+                </a>
+            @endauth
         </div>
         @if (Auth::user()->children->isNotEmpty())
             <form class="mt-4 flex items-center gap-2 text-sm" method="GET" action="{{ url()->current() }}">
@@ -53,6 +58,21 @@
                                         Uploaded: {{ \Carbon\Carbon::parse($essay->uploaded_at)->format('Y-m-d H:i') }}
                                     </div>
                                     <div class="flex items-center gap-2">
+                                        @if (in_array($essay->id, $sharedEssayIds ?? [], true))
+                                            <form method="POST" action="{{ route('previous-essays.unshare', $essay->id) }}">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                                    Unshare
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form method="POST" action="{{ route('previous-essays.share', $essay->id) }}">
+                                                @csrf
+                                                <button type="submit" class="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100">
+                                                    Share
+                                                </button>
+                                            </form>
+                                        @endif
                                         <a href="{{ route('previous-essays', ['download' => $essay->id]) }}" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                             Save as PDF
                                         </a>

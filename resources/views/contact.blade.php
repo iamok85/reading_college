@@ -7,8 +7,11 @@
                     Reading College
                 </a>
                 <nav class="flex items-center gap-4 text-sm font-medium text-gray-600">
+                    <a class="hover:text-gray-900" href="{{ route('feeds') }}">Feeds</a>
                     <a class="hover:text-gray-900" href="{{ route('about') }}">About</a>
                     <a class="hover:text-gray-900" href="{{ route('contact') }}">Contact</a>
+                    <a class="hover:text-gray-900" href="{{ route('demo') }}">Demo</a>
+                    <a class="hover:text-gray-900" href="{{ route('plans') }}">Plans</a>
                     <a class="hover:text-gray-900" href="{{ route('login') }}">Sign in</a>
                     <a class="rounded-md bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-800" href="{{ route('register') }}">Register</a>
                 </nav>

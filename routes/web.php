@@ -13,6 +13,7 @@ use App\Models\EssaySubmission;
 use App\Models\ReadingRecommendation;
 use App\Models\EssaySong;
 use App\Models\EssayAnalysis;
+use App\Models\SharedEssay;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Support\Recaptcha;
 use App\Neuron\Events\RetrieveReadingRecommendations;
@@ -26,10 +27,18 @@ use App\Neuron\Nodes\EssayImageNode;
 use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
-    return view('welcome');
+    $items = SharedEssay::query()
+        ->orderByDesc('shared_at')
+        ->limit(6)
+        ->get();
+
+    return view('welcome', [
+        'items' => $items,
+    ]);
 });
 
 Route::view('/about', 'about')->name('about');
+Route::view('/plans', 'plans')->name('plans');
 Route::view('/contact', 'contact')->name('contact');
 Route::post('/contact', function (Illuminate\Http\Request $request) {
     $data = $request->validate([
@@ -75,6 +84,15 @@ Route::get('/demo', function () {
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 Route::view('/investor', 'investor')->name('investor');
+Route::get('/feeds', function () {
+    $items = SharedEssay::query()
+        ->orderByDesc('shared_at')
+        ->paginate(20);
+
+    return view('feeds', [
+        'items' => $items,
+    ]);
+})->name('feeds');
 Route::get('/login/clean', function (Illuminate\Http\Request $request) {
     if (Auth::check()) {
         Auth::logout();
@@ -178,11 +196,71 @@ Route::middleware([
             ->paginate(1)
             ->withQueryString();
 
+        $sharedEssayIds = SharedEssay::where('user_id', auth()->id())
+            ->whereIn('essay_submission_id', $essays->pluck('id'))
+            ->pluck('essay_submission_id')
+            ->all();
+
         return view('previous-essays', [
             'essays' => $essays,
             'selectedChildId' => $childId,
+            'sharedEssayIds' => $sharedEssayIds,
         ]);
     })->name('previous-essays');
+
+    Route::post('/previous-essays/{essay}/share', function (Illuminate\Http\Request $request, EssaySubmission $essay) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+        $authorized = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->where('id', $essay->id)
+            ->exists();
+
+        if (! $authorized) {
+            abort(403);
+        }
+
+        $child = $essay->child;
+        $correctedText = $essay->corrected_version ?: $essay->response_text;
+        $imagePath = null;
+        $generatedPaths = $essay->generated_image_paths ?? [];
+        if (is_string($generatedPaths)) {
+            $generatedPaths = json_decode($generatedPaths, true) ?: [];
+        }
+        if (is_array($generatedPaths) && !empty($generatedPaths)) {
+            $imagePath = $generatedPaths[0];
+        }
+
+        SharedEssay::updateOrCreate(
+            ['essay_submission_id' => $essay->id],
+            [
+                'user_id' => auth()->id(),
+                'child_id' => $child?->id,
+                'child_name' => $child?->name,
+                'child_age' => $child?->age,
+                'corrected_text' => $correctedText,
+                'image_path' => $imagePath,
+                'shared_at' => now(),
+            ]
+        );
+
+        return back();
+    })->name('previous-essays.share');
+
+    Route::post('/previous-essays/{essay}/unshare', function (Illuminate\Http\Request $request, EssaySubmission $essay) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+        $authorized = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->where('id', $essay->id)
+            ->exists();
+
+        if (! $authorized) {
+            abort(403);
+        }
+
+        SharedEssay::where('essay_submission_id', $essay->id)->delete();
+
+        return back();
+    })->name('previous-essays.unshare');
 
     Route::delete('/previous-essays', function (Illuminate\Http\Request $request) {
         $data = $request->validate([

@@ -173,20 +173,18 @@
                             @else
                                 <p class="mt-2 text-sm text-gray-500">Waiting for analysis…</p>
                             @endif
-                        </div>
-                    @endif
-                    @if ($correctionTextPanel)
-                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
-                            <div class="text-sm font-semibold text-gray-800">Generated Images</div>
-                            @if (!empty($generatedImagePaths))
-                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                    @foreach ($generatedImagePaths as $path)
-                                        <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
-                            @endif
+                            <div class="mt-4 border-t border-gray-100 pt-4">
+                                <div class="text-sm font-semibold text-gray-800">Generated Images</div>
+                                @if (!empty($generatedImagePaths))
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        @foreach ($generatedImagePaths as $path)
+                                            <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
+                                @endif
+                            </div>
                         </div>
                     @endif
                 </div>

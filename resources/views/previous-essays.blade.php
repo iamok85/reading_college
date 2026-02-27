@@ -109,7 +109,7 @@
                                         <div data-tab-panel="images" class="hidden">
                                             <div class="flex items-center justify-between">
                                                 <div class="text-xs font-semibold text-gray-600">Generated Images</div>
-                                                <form method="POST" action="{{ route('previous-essays.images.regenerate', $essay->id) }}">
+                                                <form class="image-refresh-form" method="POST" action="{{ route('previous-essays.images.regenerate', $essay->id) }}">
                                                     @csrf
                                                     <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100">
                                                         Refresh
@@ -236,5 +236,29 @@
                 activate((defaultButton ?? buttons[0]).getAttribute('data-tab-target'));
             }
         });
+
+        const refreshForms = document.querySelectorAll('.image-refresh-form');
+        const imageModal = document.getElementById('image-refresh-modal');
+        refreshForms.forEach((form) => {
+            form.addEventListener('submit', () => {
+                if (imageModal) {
+                    imageModal.classList.remove('hidden');
+                    imageModal.classList.add('flex');
+                }
+            });
+        });
     })();
 </script>
+
+<div id="image-refresh-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+    <div class="absolute inset-0 bg-black/50"></div>
+    <div class="relative z-10 w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
+        <div class="flex items-center gap-3">
+            <svg class="h-5 w-5 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 00-4 4H4z"></path>
+            </svg>
+            <span class="text-sm text-gray-700">Regenerating image...</span>
+        </div>
+    </div>
+</div>

@@ -18,6 +18,12 @@ class EssayImageNode extends Node
         $prompt = $this->buildPrompt($event->correctedEssay);
         OpenAiLogger::log('essay_images', $prompt, null, [
             'phase' => 'request',
+            'essay_id' => $event->essayId,
+            'payload' => [
+                'model' => 'gpt-image-1.5',
+                'n' => 1,
+                'size' => '1024x1024',
+            ],
         ]);
         $imagePaths = $this->generateImages($event->essayId, $prompt);
 
@@ -106,7 +112,7 @@ class EssayImageNode extends Node
             }
 
             $filename = 'image-' . ($index + 1) . '.png';
-            $relativePath = $essayId . '/' . $filename;
+            $relativePath = 'generated_images/' . $essayId . '/' . $filename;
             Storage::disk('public')->put($relativePath, $binary);
             $paths[] = $relativePath;
         }

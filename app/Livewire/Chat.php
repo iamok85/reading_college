@@ -295,7 +295,6 @@ class Chat extends Component
             $this->thinking = false;
             $this->ocrLoading = false;
             $this->dispatch('scroll-bottom');
-            $this->refreshReadingRecommendationsCache($childId);
 
             $this->analysisEssayText = $composedInput;
             $parts = EssayCorrectionNode::parseEssayCorrection((string) $response);
@@ -333,7 +332,7 @@ class Chat extends Component
             }
 
             $state = new WorkflowState([
-                'pipeline_mode' => true,
+                'pipeline_mode' => false,
                 'user_id' => (int) (auth()->id() ?? 0),
                 'child_id' => $childId,
                 'essay_count' => 1,

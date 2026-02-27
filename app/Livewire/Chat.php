@@ -18,6 +18,7 @@ use App\Neuron\Nodes\ReadingRecommendationsNode;
 use App\Models\EssayAnalysis;
 use App\Models\EssaySubmission;
 use App\Models\ReadingRecommendation;
+use App\Models\SharedEssay;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -59,6 +60,7 @@ class Chat extends Component
     public ?int $lastEssaySubmissionId = null;
     public array $generatedImagePaths = [];
     public bool $showOcrPanel = false;
+    public bool $isLastEssayShared = false;
 
     public function render(): View
     {
@@ -137,6 +139,7 @@ class Chat extends Component
         $this->generatedImagePaths = [];
         $this->showProgressPanels = true;
         $this->showOcrPanel = false;
+        $this->isLastEssayShared = false;
 
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
@@ -284,6 +287,9 @@ class Chat extends Component
             (new EssayCorrectionNode())(new RetrieveEssayCorrection($composedInput), $state);
             $response = $state->get('essay_correction');
             $this->lastEssaySubmissionId = $state->get('essay_submission_id');
+            $this->isLastEssayShared = $this->lastEssaySubmissionId
+                ? SharedEssay::where('essay_submission_id', $this->lastEssaySubmissionId)->exists()
+                : false;
 
             if (!is_string($response) || trim($response) === '') {
                 throw new \RuntimeException('Essay correction response is empty.');
@@ -376,6 +382,62 @@ class Chat extends Component
         } catch (\Throwable $exception) {
             // Keep UI responsive even if image generation fails.
         }
+    }
+
+    public function shareLastEssay(): void
+    {
+        $essayId = $this->lastEssaySubmissionId;
+        if (!$essayId) {
+            return;
+        }
+
+        $essay = EssaySubmission::where('user_id', auth()->id())
+            ->where('id', $essayId)
+            ->first();
+
+        if (!$essay) {
+            return;
+        }
+
+        $child = $essay->child;
+        $correctedText = $essay->corrected_version ?: $essay->response_text;
+        $imagePath = null;
+        $generatedPaths = $essay->generated_image_paths ?? [];
+        if (is_string($generatedPaths)) {
+            $generatedPaths = json_decode($generatedPaths, true) ?: [];
+        }
+        if (is_array($generatedPaths) && !empty($generatedPaths)) {
+            $imagePath = $generatedPaths[0];
+        }
+
+        SharedEssay::updateOrCreate(
+            ['essay_submission_id' => $essay->id],
+            [
+                'user_id' => auth()->id(),
+                'child_id' => $child?->id,
+                'child_name' => $child?->name,
+                'child_age' => $child?->age,
+                'corrected_text' => $correctedText,
+                'image_path' => $imagePath,
+                'shared_at' => now(),
+            ]
+        );
+
+        $this->isLastEssayShared = true;
+    }
+
+    public function unshareLastEssay(): void
+    {
+        $essayId = $this->lastEssaySubmissionId;
+        if (!$essayId) {
+            return;
+        }
+
+        SharedEssay::where('essay_submission_id', $essayId)
+            ->where('user_id', auth()->id())
+            ->delete();
+
+        $this->isLastEssayShared = false;
     }
 
     public function downloadPdf(): ?StreamedResponse

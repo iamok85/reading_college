@@ -141,7 +141,7 @@ Route::get('/feeds/magazine', function (Illuminate\Http\Request $request) {
         'filters' => $request->only(['child_name', 'date_from', 'date_to']),
     ]);
 })->name('feeds.magazine');
-Route::post('/feeds/magazine/download', function (Illuminate\Http\Request $request) {
+Route::match(['get', 'post'], '/feeds/magazine/download', function (Illuminate\Http\Request $request) {
     $data = $request->validate([
         'selected' => ['nullable', 'array'],
         'selected.*' => ['integer'],

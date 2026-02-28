@@ -59,8 +59,7 @@
                         <h2 class="text-lg font-semibold text-gray-900">Browse shared essays</h2>
                         <p class="mt-1 text-sm text-gray-600">Filter by child name or date range.</p>
                     </div>
-                    <form method="POST" action="{{ route('feeds.magazine.download') }}">
-                        @csrf
+                    <form method="GET" action="{{ route('feeds.magazine.download') }}">
                         <input type="hidden" name="child_name" value="{{ $filters['child_name'] ?? '' }}">
                         <input type="hidden" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
                         <input type="hidden" name="date_to" value="{{ $filters['date_to'] ?? '' }}">

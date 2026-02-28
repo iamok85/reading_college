@@ -147,9 +147,11 @@
                         @endif
                     </div>
                 @endforeach
-                <div>
-                    {{ $items->links('pagination::simple-tailwind') }}
-                </div>
+                @if ($items instanceof \Illuminate\Pagination\AbstractPaginator)
+                    <div>
+                        {{ $items->links('pagination::simple-tailwind') }}
+                    </div>
+                @endif
             @endif
         </div>
     </div>

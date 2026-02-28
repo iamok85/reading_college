@@ -5,7 +5,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\EssayMagazine;
 use App\Models\User;
 use App\Models\Child;
 use App\Models\Contact;
@@ -142,74 +144,7 @@ Route::get('/feeds/magazine', function (Illuminate\Http\Request $request) {
     ]);
 })->name('feeds.magazine');
 Route::match(['get', 'post'], '/feeds/magazine/download', function (Illuminate\Http\Request $request) {
-    $data = $request->validate([
-        'selected' => ['nullable', 'array'],
-        'selected.*' => ['integer'],
-        'child_name' => ['nullable', 'string'],
-        'date_from' => ['nullable', 'date'],
-        'date_to' => ['nullable', 'date'],
-    ]);
-
-    if (!empty($data['selected'])) {
-        $items = SharedEssay::whereIn('id', $data['selected'])
-            ->orderByDesc('shared_at')
-            ->get();
-    } else {
-        $query = SharedEssay::query()->orderByDesc('shared_at');
-
-        if (!empty($data['child_name'])) {
-            $name = trim((string) $data['child_name']);
-            if ($name !== '') {
-                $query->where('child_name', 'like', '%' . $name . '%');
-            }
-        }
-
-        if (!empty($data['date_from'])) {
-            $query->whereDate('shared_at', '>=', $data['date_from']);
-        }
-
-        if (!empty($data['date_to'])) {
-            $query->whereDate('shared_at', '<=', $data['date_to']);
-        }
-
-        $items = $query->get();
-    }
-
-    if ($items->isEmpty()) {
-        return back()->withErrors([
-            'selected' => 'No matching shared essays found.',
-        ]);
-    }
-
-    $magazineItems = $items->map(function (SharedEssay $item): array {
-        $imageData = null;
-        if ($item->image_path) {
-            $fullPath = Storage::disk('public')->path($item->image_path);
-            if (is_file($fullPath)) {
-                $mime = mime_content_type($fullPath) ?: 'image/png';
-                $imageData = 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($fullPath));
-            }
-        }
-
-        return [
-            'child_name' => $item->child_name ?? 'Child',
-            'child_age' => $item->child_age,
-            'shared_at' => $item->shared_at,
-            'corrected_text' => $item->corrected_text ?? '',
-            'image_data' => $imageData,
-        ];
-    });
-
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.feeds-magazine', [
-        'items' => $magazineItems,
-        'generatedAt' => now(),
-    ])->setPaper('a4');
-
-    $filename = 'feeds-magazine-' . now()->format('YmdHis') . '.pdf';
-
-    return response()->streamDownload(function () use ($pdf) {
-        echo $pdf->output();
-    }, $filename);
+    return (new EssayMagazine())->download($request);
 })->name('feeds.magazine.download');
 Route::get('/login/clean', function (Illuminate\Http\Request $request) {
     if (Auth::check()) {

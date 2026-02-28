@@ -24,6 +24,9 @@
             <div class="issue">Reading College · Feeds Magazine</div>
             <div class="title">Kids Writing Highlights</div>
             <div class="subtitle">Generated {{ $generatedAt }}</div>
+            @if (!empty($totalItems) && !empty($maxItems) && $totalItems > $maxItems)
+                <div class="subtitle">Showing {{ $maxItems }} of {{ $totalItems }} items (narrow filters to export more).</div>
+            @endif
         </div>
 
         @foreach ($items as $index => $item)

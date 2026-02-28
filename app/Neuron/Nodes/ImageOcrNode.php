@@ -19,7 +19,8 @@ class ImageOcrNode extends Node
 {
     public function __invoke(RetrieveImageOcr $event, WorkflowState $state): RetrieveImageOcr|RetrievePdfOcr|RetrieveEssayCorrection
     {
-        $path = (string) ($state->get('current_image_path') ?? $event->path);
+        $path = (string) $event->path;
+        $state->set('current_image_path', $path);
         $resolvedPath = $path;
         if ($resolvedPath !== '' && !str_starts_with($resolvedPath, DIRECTORY_SEPARATOR)) {
             $resolvedPath = \Illuminate\Support\Facades\Storage::disk('public')->path($resolvedPath);
@@ -51,6 +52,7 @@ class ImageOcrNode extends Node
 
         $nextImage = $this->shiftQueue($state, 'image_queue');
         if ($nextImage !== null) {
+            $state->set('current_image_path', $nextImage);
             return new RetrieveImageOcr($nextImage);
         }
 

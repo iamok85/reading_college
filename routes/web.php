@@ -216,7 +216,9 @@ Route::middleware([
                 abort(404);
             }
 
-            $imagePaths = json_decode($essay->image_paths, true) ?: [];
+            $imagePaths = is_array($essay->image_paths)
+                ? $essay->image_paths
+                : (json_decode($essay->image_paths, true) ?: []);
             $imageData = [];
             foreach ($imagePaths as $path) {
                 $fullPath = Storage::disk('public')->path($path);

@@ -1,20 +1,13 @@
 <x-app-layout>
-    @if (!empty($shareItem))
-        @push('meta')
-            <meta property="og:title" content="Shared essay from {{ $shareItem->child_name ?? 'Child' }}">
-            <meta property="og:description" content="{{ \Illuminate\Support\Str::limit(strip_tags($shareItem->corrected_text ?? ''), 140) }}">
-            <meta property="og:image" content="{{ $shareItem->image_path ? url(\Illuminate\Support\Facades\Storage::url($shareItem->image_path)) : url('/images/reading-college-logo.svg') }}">
-            <meta property="og:url" content="{{ url()->current() }}">
-            <meta property="og:type" content="article">
-            <meta name="twitter:card" content="summary_large_image">
-        @endpush
-    @endif
     <x-slot name="header">
         <div class="flex flex-wrap items-center gap-6 text-sm font-semibold text-gray-700">
             <a href="{{ route('feeds') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds') ? 'text-gray-900 underline' : '' }}">
                 {{ __('Feeds') }}
             </a>
-            @if (Auth::check())
+            <a href="{{ route('feeds.magazine') }}" class="hover:text-gray-900 {{ request()->routeIs('feeds.magazine') ? 'text-gray-900 underline' : '' }}">
+                {{ __('Magazine') }}
+            </a>
+            @auth
                 <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Dashboard') }}
                 </a>
@@ -47,30 +40,17 @@
                     <a class="hover:text-gray-900" href="{{ route('login') }}">Sign in</a>
                     <a class="rounded-md bg-gray-900 px-3 py-1.5 text-white hover:bg-gray-800" href="{{ route('register') }}">Register</a>
                 </div>
-            @endif
+            @endauth
         </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8">
+    <div class="py-10">
+        <div class="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
             <div class="rounded-lg border border-gray-200 bg-white p-6">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Browse shared essays</h2>
-                        <p class="mt-1 text-sm text-gray-600">Filter by child name or date range.</p>
-                    </div>
-                    <form method="POST" action="{{ route('feeds.magazine.download') }}">
-                        @csrf
-                        <input type="hidden" name="child_name" value="{{ $filters['child_name'] ?? '' }}">
-                        <input type="hidden" name="date_from" value="{{ $filters['date_from'] ?? '' }}">
-                        <input type="hidden" name="date_to" value="{{ $filters['date_to'] ?? '' }}">
-                        <button class="inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800" type="submit">
-                            Create magazine
-                        </button>
-                    </form>
-                </div>
+                <h2 class="text-lg font-semibold text-gray-900">Build a magazine PDF</h2>
+                <p class="mt-2 text-sm text-gray-600">Filter shared essays and choose the ones you want to include.</p>
 
-                <form class="mt-4 grid gap-3 sm:grid-cols-4" method="GET" action="{{ route('feeds') }}">
+                <form class="mt-4 grid gap-3 sm:grid-cols-4" method="GET" action="{{ route('feeds.magazine') }}">
                     <div class="sm:col-span-2">
                         <label class="text-xs font-semibold text-gray-600" for="child_name">Child name</label>
                         <input
@@ -106,51 +86,58 @@
                         <button type="submit" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">
                             Apply filters
                         </button>
-                        <a href="{{ route('feeds') }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">
+                        <a href="{{ route('feeds.magazine') }}" class="text-sm font-semibold text-gray-600 hover:text-gray-900">
                             Reset
                         </a>
                     </div>
                 </form>
             </div>
-            @if ($items->isEmpty())
-                <div class="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
-                    No shared essays yet.
-                </div>
-            @else
-                @foreach ($items as $item)
-                    @php
-                        $shareUrl = route('feeds.show', $item->id);
-                    @endphp
-                    <div id="shared-{{ $item->id }}" class="rounded-lg border border-gray-200 bg-white p-6">
-                        <div class="flex items-center justify-between text-sm text-gray-600">
-                            <div>
-                                <span class="font-semibold text-gray-800">{{ $item->child_name ?? 'Child' }}</span>
-                                @if ($item->child_age)
-                                    <span class="ml-1 text-gray-500">({{ $item->child_age }})</span>
-                                @endif
-                            </div>
-                            <span>{{ optional($item->shared_at)->format('Y-m-d H:i') }}</span>
-                        </div>
-                        <div class="mt-2 flex items-center gap-3 text-xs font-semibold text-gray-500">
-                            <a class="hover:text-blue-600" href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode($shareUrl) }}" target="_blank" rel="noopener">
-                                Share on Facebook
-                            </a>
-                            <a class="hover:text-gray-800" href="https://twitter.com/intent/tweet?url={{ urlencode($shareUrl) }}" target="_blank" rel="noopener">
-                                Share on X
-                            </a>
-                        </div>
-                        @if ($item->image_path)
-                            <img class="mt-4 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}" alt="Shared essay image">
-                        @endif
-                        @if ($item->corrected_text)
-                            <pre class="mt-4 whitespace-pre-wrap text-sm text-gray-700">{{ $item->corrected_text }}</pre>
-                        @endif
+
+            <form method="POST" action="{{ route('feeds.magazine.download') }}" class="space-y-4">
+                @csrf
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-600">
+                        Select the feeds to include, then generate the PDF.
                     </div>
-                @endforeach
-                <div>
-                    {{ $items->links('pagination::simple-tailwind') }}
+                    <button type="submit" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800">
+                        Generate PDF
+                    </button>
                 </div>
-            @endif
+                @error('selected')
+                    <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {{ $message }}
+                    </div>
+                @enderror
+
+                @if ($items->isEmpty())
+                    <div class="rounded-lg border border-gray-200 bg-white p-6 text-sm text-gray-600">
+                        No shared essays found.
+                    </div>
+                @else
+                    <div class="grid gap-4">
+                        @foreach ($items as $item)
+                            <label class="flex gap-4 rounded-lg border border-gray-200 bg-white p-4">
+                                <input type="checkbox" name="selected[]" value="{{ $item->id }}" class="mt-1">
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between text-xs text-gray-500">
+                                        <span class="font-semibold text-gray-700">{{ $item->child_name ?? 'Child' }}</span>
+                                        <span>{{ optional($item->shared_at)->format('Y-m-d') }}</span>
+                                    </div>
+                                    @if ($item->image_path)
+                                        <img class="mt-2 h-32 w-full rounded-md border border-gray-200 object-cover" src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}" alt="Shared essay image">
+                                    @endif
+                                    @if ($item->corrected_text)
+                                        <p class="mt-2 text-sm text-gray-600 line-clamp-3">{{ $item->corrected_text }}</p>
+                                    @endif
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                    <div>
+                        {{ $items->links('pagination::simple-tailwind') }}
+                    </div>
+                @endif
+            </form>
         </div>
     </div>
 </x-app-layout>

@@ -84,15 +84,133 @@ Route::get('/demo', function () {
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 Route::view('/investor', 'investor')->name('investor');
-Route::get('/feeds', function () {
-    $items = SharedEssay::query()
-        ->orderByDesc('shared_at')
-        ->paginate(20);
+Route::get('/feeds/{sharedEssay}', function (SharedEssay $sharedEssay) {
+    return view('feeds', [
+        'items' => collect([$sharedEssay]),
+        'shareItem' => $sharedEssay,
+    ]);
+})->whereNumber('sharedEssay')->name('feeds.show');
+
+Route::get('/feeds', function (Illuminate\Http\Request $request) {
+    $query = SharedEssay::query()->orderByDesc('shared_at');
+
+    if ($request->filled('child_name')) {
+        $name = trim((string) $request->input('child_name'));
+        if ($name !== '') {
+            $query->where('child_name', 'like', '%' . $name . '%');
+        }
+    }
+
+    if ($request->filled('date_from')) {
+        $query->whereDate('shared_at', '>=', $request->input('date_from'));
+    }
+
+    if ($request->filled('date_to')) {
+        $query->whereDate('shared_at', '<=', $request->input('date_to'));
+    }
+
+    $items = $query->paginate(20)->withQueryString();
 
     return view('feeds', [
         'items' => $items,
+        'filters' => $request->only(['child_name', 'date_from', 'date_to']),
     ]);
 })->name('feeds');
+Route::get('/feeds/magazine', function (Illuminate\Http\Request $request) {
+    $query = SharedEssay::query()->orderByDesc('shared_at');
+
+    if ($request->filled('child_name')) {
+        $name = trim((string) $request->input('child_name'));
+        if ($name !== '') {
+            $query->where('child_name', 'like', '%' . $name . '%');
+        }
+    }
+
+    if ($request->filled('date_from')) {
+        $query->whereDate('shared_at', '>=', $request->input('date_from'));
+    }
+
+    if ($request->filled('date_to')) {
+        $query->whereDate('shared_at', '<=', $request->input('date_to'));
+    }
+
+    $items = $query->paginate(20)->withQueryString();
+
+    return view('feeds-magazine', [
+        'items' => $items,
+        'filters' => $request->only(['child_name', 'date_from', 'date_to']),
+    ]);
+})->name('feeds.magazine');
+Route::post('/feeds/magazine/download', function (Illuminate\Http\Request $request) {
+    $data = $request->validate([
+        'selected' => ['nullable', 'array'],
+        'selected.*' => ['integer'],
+        'child_name' => ['nullable', 'string'],
+        'date_from' => ['nullable', 'date'],
+        'date_to' => ['nullable', 'date'],
+    ]);
+
+    if (!empty($data['selected'])) {
+        $items = SharedEssay::whereIn('id', $data['selected'])
+            ->orderByDesc('shared_at')
+            ->get();
+    } else {
+        $query = SharedEssay::query()->orderByDesc('shared_at');
+
+        if (!empty($data['child_name'])) {
+            $name = trim((string) $data['child_name']);
+            if ($name !== '') {
+                $query->where('child_name', 'like', '%' . $name . '%');
+            }
+        }
+
+        if (!empty($data['date_from'])) {
+            $query->whereDate('shared_at', '>=', $data['date_from']);
+        }
+
+        if (!empty($data['date_to'])) {
+            $query->whereDate('shared_at', '<=', $data['date_to']);
+        }
+
+        $items = $query->get();
+    }
+
+    if ($items->isEmpty()) {
+        return back()->withErrors([
+            'selected' => 'No matching shared essays found.',
+        ]);
+    }
+
+    $magazineItems = $items->map(function (SharedEssay $item): array {
+        $imageData = null;
+        if ($item->image_path) {
+            $fullPath = Storage::disk('public')->path($item->image_path);
+            if (is_file($fullPath)) {
+                $mime = mime_content_type($fullPath) ?: 'image/png';
+                $imageData = 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($fullPath));
+            }
+        }
+
+        return [
+            'child_name' => $item->child_name ?? 'Child',
+            'child_age' => $item->child_age,
+            'shared_at' => $item->shared_at,
+            'corrected_text' => $item->corrected_text ?? '',
+            'image_data' => $imageData,
+        ];
+    });
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.feeds-magazine', [
+        'items' => $magazineItems,
+        'generatedAt' => now(),
+    ])->setPaper('a4');
+
+    $filename = 'feeds-magazine-' . now()->format('YmdHis') . '.pdf';
+
+    return response()->streamDownload(function () use ($pdf) {
+        echo $pdf->output();
+    }, $filename);
+})->name('feeds.magazine.download');
 Route::get('/login/clean', function (Illuminate\Http\Request $request) {
     if (Auth::check()) {
         Auth::logout();
@@ -196,15 +314,18 @@ Route::middleware([
             ->paginate(1)
             ->withQueryString();
 
-        $sharedEssayIds = SharedEssay::where('user_id', auth()->id())
+        $sharedEssays = SharedEssay::where('user_id', auth()->id())
             ->whereIn('essay_submission_id', $essays->pluck('id'))
-            ->pluck('essay_submission_id')
-            ->all();
+            ->get()
+            ->keyBy('essay_submission_id');
+
+        $sharedEssayIds = $sharedEssays->keys()->all();
 
         return view('previous-essays', [
             'essays' => $essays,
             'selectedChildId' => $childId,
             'sharedEssayIds' => $sharedEssayIds,
+            'sharedEssays' => $sharedEssays,
         ]);
     })->name('previous-essays');
 

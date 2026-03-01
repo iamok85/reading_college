@@ -21,12 +21,19 @@ class EssaySubmission extends Model
         'corrected_version',
         'analysis_text',
         'response_text',
+        'generated_video_path',
+        'video_job_id',
+        'video_status',
+        'video_progress',
+        'video_error',
+        'video_url',
     ];
 
     protected $casts = [
         'image_paths' => 'array',
         'generated_image_paths' => 'array',
         'uploaded_at' => 'datetime',
+        'video_progress' => 'integer',
     ];
 
     public function user(): BelongsTo

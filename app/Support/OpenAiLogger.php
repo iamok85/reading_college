@@ -13,10 +13,12 @@ class OpenAiLogger
             return;
         }
 
+        $model = $meta['model'] ?? ($_ENV['OPENAI_CHAT_MODEL'] ?? null);
+
         OpenAiLog::create([
             'user_id' => auth()->id(),
             'context' => $context,
-            'model' => $_ENV['OPENAI_CHAT_MODEL'] ?? null,
+            'model' => $model,
             'prompt' => $prompt,
             'response' => $response,
             'meta' => $meta,
@@ -25,7 +27,7 @@ class OpenAiLogger
         Log::channel('openai')->info('openai.call', [
             'user_id' => auth()->id(),
             'context' => $context,
-            'model' => $_ENV['OPENAI_CHAT_MODEL'] ?? null,
+            'model' => $model,
             'prompt' => $prompt,
             'response' => $response,
             'meta' => $meta,

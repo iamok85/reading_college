@@ -5,12 +5,14 @@ namespace App\Livewire;
 use App\Neuron\Events\RetrieveEssayCorrection;
 use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Events\RetrieveEssayImages;
+use App\Neuron\Events\RetrieveEssayVideo;
 use App\Neuron\Events\RetrieveImageOcr;
 use App\Neuron\Events\RetrievePdfOcr;
 use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Neuron\Nodes\EssayCorrectionNode;
 use App\Neuron\Nodes\EssayAnalysisNode;
 use App\Neuron\Nodes\EssayImageNode;
+use App\Neuron\Nodes\EssayVideoNode;
 use App\Neuron\Nodes\EssayPipelineStartNode;
 use App\Neuron\Nodes\ImageOcrNode;
 use App\Neuron\Nodes\PdfOcrNode;
@@ -61,6 +63,11 @@ class Chat extends Component
     public array $generatedImagePaths = [];
     public bool $showOcrPanel = false;
     public bool $isLastEssayShared = false;
+    public ?string $generatedVideoPath = null;
+    public ?string $generatedVideoStatus = null;
+    public ?int $generatedVideoProgress = null;
+    public ?string $generatedVideoError = null;
+    public ?string $generatedVideoUrl = null;
 
     public function render(): View
     {
@@ -104,6 +111,11 @@ class Chat extends Component
         $this->thinking = false;
         $this->generatedImagePaths = [];
         $this->showOcrPanel = false;
+        $this->generatedVideoPath = null;
+        $this->generatedVideoStatus = null;
+        $this->generatedVideoProgress = null;
+        $this->generatedVideoError = null;
+        $this->generatedVideoUrl = null;
 
         $user = auth()->user();
         $username = $user?->name ?? 'user';
@@ -140,6 +152,11 @@ class Chat extends Component
         $this->showProgressPanels = true;
         $this->showOcrPanel = false;
         $this->isLastEssayShared = false;
+        $this->generatedVideoPath = null;
+        $this->generatedVideoStatus = null;
+        $this->generatedVideoProgress = null;
+        $this->generatedVideoError = null;
+        $this->generatedVideoUrl = null;
 
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
@@ -203,6 +220,11 @@ class Chat extends Component
         $this->showProgressPanels = false;
         $this->generatedImagePaths = [];
         $this->showOcrPanel = false;
+        $this->generatedVideoPath = null;
+        $this->generatedVideoStatus = null;
+        $this->generatedVideoProgress = null;
+        $this->generatedVideoError = null;
+        $this->generatedVideoUrl = null;
     }
 
     public function clearInput(): void
@@ -382,6 +404,42 @@ class Chat extends Component
         } catch (\Throwable $exception) {
             // Keep UI responsive even if image generation fails.
         }
+    }
+
+    #[On('getEssayVideoResponse')]
+    public function getEssayVideoResponse(int $essayId, string $correctedEssay): void
+    {
+        try {
+            $videoState = new WorkflowState([
+                'pipeline_mode' => false,
+            ]);
+            (new EssayVideoNode())(
+                new RetrieveEssayVideo($essayId, $correctedEssay),
+                $videoState
+            );
+            $submission = EssaySubmission::find($essayId);
+            $this->generatedVideoPath = $submission?->generated_video_path;
+            $this->generatedVideoStatus = $submission?->video_status;
+            $this->generatedVideoProgress = $submission?->video_progress;
+            $this->generatedVideoError = $submission?->video_error;
+            $this->generatedVideoUrl = $submission?->video_url;
+        } catch (\Throwable $exception) {
+            // Keep UI responsive even if video generation fails.
+        }
+    }
+
+    public function refreshVideoStatus(): void
+    {
+        if (!$this->lastEssaySubmissionId) {
+            return;
+        }
+
+        $submission = EssaySubmission::find($this->lastEssaySubmissionId);
+        $this->generatedVideoPath = $submission?->generated_video_path;
+        $this->generatedVideoStatus = $submission?->video_status;
+        $this->generatedVideoProgress = $submission?->video_progress;
+        $this->generatedVideoError = $submission?->video_error;
+        $this->generatedVideoUrl = $submission?->video_url;
     }
 
     public function shareLastEssay(): void

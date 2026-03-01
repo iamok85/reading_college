@@ -26,6 +26,8 @@ use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Nodes\EssayAnalysisNode;
 use App\Neuron\Events\RetrieveEssayImages;
 use App\Neuron\Nodes\EssayImageNode;
+use App\Neuron\Events\RetrieveEssayVideo;
+use App\Neuron\Nodes\EssayVideoNode;
 use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
@@ -357,6 +359,59 @@ Route::middleware([
 
         return back();
     })->name('previous-essays.images.regenerate');
+
+    Route::post('/previous-essays/{essay}/videos/regenerate', function (Illuminate\Http\Request $request, EssaySubmission $essay) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+        $authorized = EssaySubmission::where('user_id', auth()->id())
+            ->when($childId, fn ($query) => $query->where('child_id', $childId))
+            ->where('id', $essay->id)
+            ->exists();
+
+        if (! $authorized) {
+            abort(403);
+        }
+
+        $correctedEssay = trim((string) ($essay->corrected_version ?: $essay->ocr_text ?: $essay->response_text));
+        if ($correctedEssay === '') {
+            return back()->withErrors([
+                'essay_video' => 'Unable to regenerate video without corrected text.',
+            ]);
+        }
+
+        $state = new WorkflowState([
+            'pipeline_mode' => false,
+        ]);
+        (new EssayVideoNode())(new RetrieveEssayVideo($essay->id, $correctedEssay), $state);
+
+        return back();
+    })->name('previous-essays.videos.regenerate');
+
+    Route::get('/previous-essays/video-status', function (Illuminate\Http\Request $request) {
+        $data = $request->validate([
+            'essay_ids' => ['required', 'string'],
+        ]);
+
+        $ids = array_filter(array_map('intval', explode(',', $data['essay_ids'])));
+        if (empty($ids)) {
+            return response()->json([]);
+        }
+
+        $rows = EssaySubmission::where('user_id', auth()->id())
+            ->whereIn('id', $ids)
+            ->get(['id', 'video_status', 'video_progress', 'video_error', 'generated_video_path', 'video_url']);
+
+        return response()->json($rows->mapWithKeys(function (EssaySubmission $essay) {
+            return [
+                $essay->id => [
+                    'status' => $essay->video_status,
+                    'progress' => $essay->video_progress,
+                    'error' => $essay->video_error,
+                    'path' => $essay->generated_video_path,
+                    'url' => $essay->video_url,
+                ],
+            ];
+        }));
+    })->name('previous-essays.video-status');
 
     Route::post('/child-profile', function (Illuminate\Http\Request $request) {
         $minYear = now()->year - 18;

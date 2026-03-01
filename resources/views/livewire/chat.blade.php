@@ -174,6 +174,29 @@
                                         <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
                                     @endif
                                 </div>
+                                <div class="mt-4 border-t border-gray-100 pt-4">
+                                    <div class="text-sm font-semibold text-gray-800">Generated Video</div>
+                                    @if ($generatedVideoPath || $generatedVideoUrl)
+                                        <video class="mt-3 w-full rounded-md border border-gray-200" controls>
+                                            <source src="{{ $generatedVideoPath ? \Illuminate\Support\Facades\Storage::url($generatedVideoPath) : $generatedVideoUrl }}" type="video/mp4">
+                                        </video>
+                                    @else
+                                        <div class="mt-3" wire:poll.5s="refreshVideoStatus">
+                                            @if ($generatedVideoError)
+                                                <p class="text-sm text-red-600">{{ $generatedVideoError }}</p>
+                                            @else
+                                                <div class="flex items-center justify-between text-xs text-gray-500">
+                                                    <span>{{ $generatedVideoStatus ? ucfirst($generatedVideoStatus) : 'Queued' }}</span>
+                                                    <span>{{ $generatedVideoProgress ?? 0 }}%</span>
+                                                </div>
+                                                <div class="mt-2 h-2 w-full rounded-full bg-gray-100">
+                                                    <div class="h-2 rounded-full bg-blue-500" style="width: {{ $generatedVideoProgress ?? 0 }}%;"></div>
+                                                </div>
+                                                <p class="mt-2 text-sm text-gray-500">Generating video…</p>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
                             @else
                                 <p class="mt-2 text-sm text-gray-500">Waiting for correction…</p>
                             @endif
@@ -233,10 +256,14 @@
                 payload = payload[0];
             }
 
-            // Trigger image generation first
+            // Trigger image + video generation
             if (window.Livewire?.dispatch) {
                 if (payload?.essayId && payload?.correctedEssay) {
                     window.Livewire.dispatch('getEssayImagesResponse', {
+                        essayId: payload.essayId,
+                        correctedEssay: payload.correctedEssay,
+                    });
+                    window.Livewire.dispatch('getEssayVideoResponse', {
                         essayId: payload.essayId,
                         correctedEssay: payload.correctedEssay,
                     });

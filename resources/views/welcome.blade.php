@@ -7,6 +7,16 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Google tag (gtag.js) -->
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-935P1VWT6J"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-935P1VWT6J');
+        </script>
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
@@ -93,7 +103,7 @@
                                 </div>
                                 @if ($item->image_path)
                                     <img
-                                        class="mt-3 rounded-md border border-gray-200 object-cover"
+                                        class="mt-3 mx-auto rounded-md border border-gray-200 object-cover"
                                         style="width: 250px; height: 250px;"
                                         src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}"
                                         alt="Shared essay image"

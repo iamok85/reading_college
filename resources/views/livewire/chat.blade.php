@@ -1,5 +1,25 @@
 <div>
     <div class="max-w-2xl mx-auto">
+        @if ($errors->has('credits'))
+            <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ $errors->first('credits') }}
+            </div>
+        @endif
+        @if (auth()->check() && (auth()->user()->credits ?? 0) <= 0)
+            <div id="credits-zero-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                <div class="w-full max-w-sm rounded-lg bg-white p-6 text-center shadow-lg">
+                    <h3 class="text-lg font-semibold text-gray-900">No credits left</h3>
+                    <p class="mt-2 text-sm text-gray-600">Your credits are 0. Please recharge to continue.</p>
+                    <button
+                        type="button"
+                        class="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                        onclick="document.getElementById('credits-zero-modal')?.classList.add('hidden');"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        @endif
 
         <!-- Welcome + Chat Box -->
         <div class="text-center pt-6">

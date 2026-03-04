@@ -139,7 +139,7 @@
                             </a>
                         </div>
                         @if ($item->image_path)
-                            <img class="mt-4 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}" alt="Shared essay image">
+                            <img class="mt-4 mx-auto w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($item->image_path) }}" alt="Shared essay image">
                         @endif
                         @if ($item->corrected_text)
                             <pre class="mt-4 whitespace-pre-wrap text-sm text-gray-700">{{ $item->corrected_text }}</pre>

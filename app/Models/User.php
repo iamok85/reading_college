@@ -34,6 +34,7 @@ class User extends Authenticatable
         'plan_type',
         'free_trial_used_at',
         'free_trial_ends_at',
+        'credits',
         'email',
         'password',
     ];
@@ -71,6 +72,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'free_trial_used_at' => 'datetime',
             'free_trial_ends_at' => 'datetime',
+            'credits' => 'integer',
         ];
     }
 

@@ -46,6 +46,8 @@
 
                 @if ($errors->has('readings'))
                     <p class="mt-4 text-sm text-red-600">{{ $errors->first('readings') }}</p>
+                @elseif ($errors->has('credits'))
+                    <p class="mt-4 text-sm text-red-600">{{ $errors->first('credits') }}</p>
                 @endif
                 @if ($essayCount > 0)
                     <div class="mt-4 flex justify-end">
@@ -81,9 +83,9 @@
                 @if (empty($recommendations))
                     <p class="mt-2 text-sm text-gray-600">No recommendations yet.</p>
                 @else
-                    <ul class="mt-3 space-y-4 text-sm text-gray-700">
+                    <ul class="mt-3 space-y-4 text-sm text-gray-700" id="reading-recommendation-list">
                         @foreach ($recommendations as $index => $item)
-                            <li class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                            <li class="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700" data-rec-index="{{ $index }}">
                                 <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
                                     <span class="rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">
                                         {{ $item['type'] }}
@@ -93,7 +95,13 @@
                                         Download PDF
                                     </a>
                                 </div>
-                                <p class="mt-2 text-sm text-gray-700">{{ $item['paragraph'] }}</p>
+                                @if (!empty($item['image_path']))
+                                    <img class="mt-3 mx-auto rounded-md border border-gray-200 object-contain" style="width: 250px; height: 250px;" src="{{ \Illuminate\Support\Facades\Storage::url($item['image_path']) }}" alt="Reading recommendation image" data-rec-image="1">
+                                    <p class="mt-2 text-sm text-gray-700">{{ $item['paragraph'] }}</p>
+                                @else
+                                    <div class="mt-3 text-xs text-gray-500" data-rec-placeholder>Generating image…</div>
+                                    <p class="mt-2 text-sm text-gray-700">{{ $item['paragraph'] }}</p>
+                                @endif
                             </li>
                         @endforeach
                     </ul>
@@ -109,6 +117,63 @@
             <p class="mt-1 text-xs text-gray-500">Please wait a moment.</p>
         </div>
     </div>
+
+    <script>
+        (function () {
+            const list = document.getElementById('reading-recommendation-list');
+            if (!list) return;
+
+            const poll = () => {
+                fetch("{{ route('reading-recommendations.status', ['child_id' => $selectedChildId]) }}", {
+                    headers: { 'Accept': 'application/json' },
+                })
+                    .then((response) => response.ok ? response.json() : null)
+                    .then((data) => {
+                        if (!data || !Array.isArray(data.items)) return;
+                        data.items.forEach((item, index) => {
+                            const row = list.querySelector(`[data-rec-index="${index}"]`);
+                            if (!row) return;
+                            const existing = row.querySelector('img[data-rec-image]');
+
+                            if (item.image_path && !existing) {
+                                const img = document.createElement('img');
+                                img.className = 'mt-3 mx-auto rounded-md border border-gray-200 object-contain';
+                                img.style.width = '250px';
+                                img.style.height = '250px';
+                                img.src = "{{ \Illuminate\Support\Facades\Storage::url('') }}" + item.image_path;
+                                img.alt = 'Reading recommendation image';
+                                img.setAttribute('data-rec-image', '1');
+
+                                const placeholder = row.querySelector('[data-rec-placeholder]');
+                                if (placeholder) {
+                                    placeholder.replaceWith(img);
+                                } else {
+                                    const paragraph = row.querySelector('p');
+                                    if (paragraph) {
+                                        row.insertBefore(img, paragraph);
+                                    } else {
+                                        const text = document.createElement('p');
+                                        text.className = 'mt-2 text-sm text-gray-700';
+                                        text.textContent = item.paragraph || '';
+                                        row.appendChild(img);
+                                        row.appendChild(text);
+                                    }
+                                }
+                            } else if (item.image_path && existing) {
+                                const placeholder = row.querySelector('[data-rec-placeholder]');
+                                if (placeholder) {
+                                    placeholder.remove();
+                                }
+                            }
+                        });
+                    })
+                    .catch(() => {});
+            };
+
+            poll();
+            setInterval(poll, 5000);
+        })();
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

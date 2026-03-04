@@ -13,6 +13,8 @@ use App\Neuron\Nodes\EssayCorrectionNode;
 use App\Neuron\Nodes\EssayAnalysisNode;
 use App\Neuron\Nodes\EssayImageNode;
 use App\Neuron\Nodes\EssayVideoNode;
+use App\Services\CreditService;
+use App\Neuron\Workflows\ReadingRecommendationPipeline;
 use App\Neuron\Nodes\EssayPipelineStartNode;
 use App\Neuron\Nodes\ImageOcrNode;
 use App\Neuron\Nodes\PdfOcrNode;
@@ -184,6 +186,15 @@ class Chat extends Component
 
             if ($submissionCount >= 2) {
                 $this->addError('input', 'Demo users can submit up to 2 essays.');
+                $this->thinking = false;
+                return;
+            }
+        }
+
+        if ($user) {
+            $credits = new CreditService();
+            if (! $credits->charge($user, CreditService::COST_CORRECTION_ANALYSIS)) {
+                $this->addError('credits', 'Not enough credits to submit an essay (requires 5).');
                 $this->thinking = false;
                 return;
             }
@@ -391,6 +402,14 @@ class Chat extends Component
     public function getEssayImagesResponse(int $essayId, string $correctedEssay): void
     {
         try {
+            $user = auth()->user();
+            if ($user) {
+                $credits = new CreditService();
+                if (! $credits->charge($user, CreditService::COST_IMAGES)) {
+                    $this->addError('credits', 'Not enough credits to generate images (requires 10).');
+                    return;
+                }
+            }
             $imageState = new WorkflowState([
                 'pipeline_mode' => false,
             ]);
@@ -410,6 +429,14 @@ class Chat extends Component
     public function getEssayVideoResponse(int $essayId, string $correctedEssay): void
     {
         try {
+            $user = auth()->user();
+            if ($user) {
+                $credits = new CreditService();
+                if (! $credits->charge($user, CreditService::COST_VIDEO)) {
+                    $this->addError('credits', 'Not enough credits to generate a video (requires 20).');
+                    return;
+                }
+            }
             $videoState = new WorkflowState([
                 'pipeline_mode' => false,
             ]);
@@ -538,6 +565,14 @@ class Chat extends Component
             return;
         }
 
+        $user = auth()->user();
+        if ($user) {
+            $credits = new CreditService();
+            if (! $credits->charge($user, CreditService::COST_READING_RECOMMENDATIONS)) {
+                return;
+            }
+        }
+
         $essays = EssaySubmission::where('user_id', $userId)
             ->where('child_id', $childId)
             ->orderByDesc('uploaded_at')
@@ -593,6 +628,8 @@ class Chat extends Component
             ];
         }, $decoded['items']);
 
+        $recommendationLinks = array_slice($recommendationLinks, 0, 1);
+
         if (empty($recommendationLinks)) {
             return;
         }
@@ -611,6 +648,17 @@ class Chat extends Component
                 'items' => $recommendationLinks,
             ]
         );
+
+        $recommendation = ReadingRecommendation::where('user_id', $userId)
+            ->where('child_id', $childId)
+            ->first();
+
+        if ($recommendation) {
+            $pipeline = new ReadingRecommendationPipeline($recommendation->id, $recommendationLinks);
+            foreach ($pipeline->run() as $event) {
+                // Drain generator
+            }
+        }
     }
 
     private function refreshEssayAnalysisCache(?int $childId): void

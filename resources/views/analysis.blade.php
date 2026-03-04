@@ -62,6 +62,8 @@
 
                 @if ($errors->has('analysis'))
                     <p class="mt-4 text-sm text-red-600">{{ $errors->first('analysis') }}</p>
+                @elseif ($errors->has('credits'))
+                    <p class="mt-4 text-sm text-red-600">{{ $errors->first('credits') }}</p>
                 @endif
 
                 @if (! $essayCount)

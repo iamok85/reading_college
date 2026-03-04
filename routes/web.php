@@ -28,6 +28,8 @@ use App\Neuron\Events\RetrieveEssayImages;
 use App\Neuron\Nodes\EssayImageNode;
 use App\Neuron\Events\RetrieveEssayVideo;
 use App\Neuron\Nodes\EssayVideoNode;
+use App\Services\CreditService;
+use App\Neuron\Workflows\ReadingRecommendationPipeline;
 use NeuronAI\Workflow\WorkflowState;
 
 Route::get('/', function () {
@@ -345,6 +347,13 @@ Route::middleware([
             abort(403);
         }
 
+        $credits = new CreditService();
+        if (! $credits->charge($request->user(), CreditService::COST_IMAGES)) {
+            return back()->withErrors([
+                'essay_images' => 'Not enough credits to regenerate images (requires 10).',
+            ]);
+        }
+
         $correctedEssay = trim((string) ($essay->corrected_version ?: $essay->ocr_text ?: $essay->response_text));
         if ($correctedEssay === '') {
             return back()->withErrors([
@@ -369,6 +378,13 @@ Route::middleware([
 
         if (! $authorized) {
             abort(403);
+        }
+
+        $credits = new CreditService();
+        if (! $credits->charge($request->user(), CreditService::COST_VIDEO)) {
+            return back()->withErrors([
+                'essay_video' => 'Not enough credits to regenerate video (requires 20).',
+            ]);
         }
 
         $correctedEssay = trim((string) ($essay->corrected_version ?: $essay->ocr_text ?: $essay->response_text));
@@ -591,6 +607,82 @@ Route::middleware([
             $isRefreshing = true;
         }
 
+        if ($isRefreshing && $essayCount > 0) {
+            $credits = new CreditService();
+            if (! $credits->charge($request->user(), CreditService::COST_READING_RECOMMENDATIONS)) {
+                return view('reading-recommendations', [
+                    'child' => $child,
+                    'essayCount' => $essayCount,
+                    'recommendations' => $recommendationLinks,
+                    'topics' => [],
+                    'ageBand' => null,
+                    'isRefreshing' => false,
+                    'selectedChildId' => $childId,
+                ])->withErrors([
+                    'readings' => 'Not enough credits to refresh readings (requires 20).',
+                ]);
+            }
+
+            $text = $essays
+                ->map(fn ($essay) => trim((string) ($essay->ocr_text ?: $essay->response_text)))
+                ->filter()
+                ->implode("\n\n");
+
+            if (trim($text) !== '') {
+                $wordCount = str_word_count(strip_tags($text));
+                $targetWords = max(60, min(200, $wordCount ?: 80));
+                $childAge = null;
+                if ($child?->birth_year) {
+                    $childAge = now()->year - $child->birth_year;
+                } elseif (property_exists($child, 'age') && $child?->age) {
+                    $childAge = (int) $child->age;
+                }
+
+                $event = new RetrieveReadingRecommendations(
+                    essayText: $text,
+                    targetWords: $targetWords,
+                    childName: $child?->name,
+                    childAge: $childAge,
+                    childGender: $child?->gender
+                );
+
+                $state = new WorkflowState();
+                (new ReadingRecommendationsNode())($event, $state);
+
+                $raw = $state->get('reading_recommendations');
+                $decoded = is_string($raw) ? json_decode($raw, true) : null;
+                if (is_array($decoded) && isset($decoded['items']) && is_array($decoded['items'])) {
+                    $recommendationLinks = array_map(function (array $item): array {
+                        return [
+                            'title' => (string) ($item['title'] ?? ''),
+                            'type' => (string) ($item['type'] ?? 'Book'),
+                            'paragraph' => (string) ($item['paragraph'] ?? ''),
+                        ];
+                    }, $decoded['items']);
+                    $recommendationLinks = array_slice($recommendationLinks, 0, 1);
+
+                    $recommendation = ReadingRecommendation::updateOrCreate(
+                        [
+                            'user_id' => auth()->id(),
+                            'child_id' => $childId,
+                        ],
+                        [
+                            'essay_count' => $essayCount,
+                            'last_submission_at' => $latestSubmissionAt,
+                            'items' => $recommendationLinks,
+                        ]
+                    );
+
+                    if ($recommendation) {
+                        $pipeline = new ReadingRecommendationPipeline($recommendation->id, $recommendationLinks);
+                        foreach ($pipeline->run() as $event) {
+                            // Drain generator
+                        }
+                    }
+                }
+            }
+        }
+
         return view('reading-recommendations', [
             'child' => $child,
             'essayCount' => $essayCount,
@@ -602,8 +694,25 @@ Route::middleware([
         ]);
     })->name('reading-recommendations');
 
+    Route::get('/reading-recommendations/status', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
+        $childId = $getSelectedChildId($request);
+        $cached = ReadingRecommendation::where('user_id', auth()->id())
+            ->where('child_id', $childId)
+            ->first();
+
+        return response()->json([
+            'items' => $cached?->items ?? [],
+        ]);
+    })->name('reading-recommendations.status');
+
     Route::post('/reading-recommendations/refresh', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
+        $credits = new CreditService();
+        if (! $credits->charge($request->user(), CreditService::COST_READING_RECOMMENDATIONS)) {
+            return back()->withErrors([
+                'readings' => 'Not enough credits to refresh readings (requires 20).',
+            ]);
+        }
 
         $essays = EssaySubmission::where('user_id', auth()->id())
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
@@ -662,7 +771,9 @@ Route::middleware([
             ];
         }, $decoded['items']);
 
-        ReadingRecommendation::updateOrCreate(
+        $recommendationLinks = array_slice($recommendationLinks, 0, 1);
+
+        $recommendation = ReadingRecommendation::updateOrCreate(
             [
                 'user_id' => auth()->id(),
                 'child_id' => $childId,
@@ -673,6 +784,13 @@ Route::middleware([
                 'items' => $recommendationLinks,
             ]
         );
+
+        if ($recommendation) {
+            $pipeline = new ReadingRecommendationPipeline($recommendation->id, $recommendationLinks);
+            foreach ($pipeline->run() as $event) {
+                // Drain generator
+            }
+        }
 
         return back();
     })->name('reading-recommendations.refresh');
@@ -736,6 +854,12 @@ Route::middleware([
 
     Route::post('/analysis/refresh', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
+        $credits = new CreditService();
+        if (! $credits->charge($request->user(), CreditService::COST_CORRECTION_ANALYSIS)) {
+            return back()->withErrors([
+                'analysis' => 'Not enough credits to refresh analysis (requires 5).',
+            ]);
+        }
 
         $essays = EssaySubmission::where('user_id', auth()->id())
             ->when($childId, fn ($query) => $query->where('child_id', $childId))
@@ -784,6 +908,7 @@ Route::middleware([
     })->name('analysis.refresh');
 
     Route::view('/billing', 'billing')->name('billing');
+    Route::view('/credits-usage', 'credits-usage')->name('credits.usage');
     Route::get('/songs', function (Illuminate\Http\Request $request) use ($getSelectedChildId) {
         $childId = $getSelectedChildId($request);
 

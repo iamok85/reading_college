@@ -147,6 +147,9 @@
             <a href="{{ route('dashboard') }}" class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 @if (request()->routeIs('dashboard')) bg-gray-100 text-gray-900 @endif">
                 {{ __('Dashboard') }}
             </a>
+            <a href="{{ route('jobs') }}" class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 @if (request()->routeIs('jobs')) bg-gray-100 text-gray-900 @endif">
+                {{ __('Processing') }}
+            </a>
             <a href="{{ route('feeds') }}" class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 @if (request()->routeIs('feeds')) bg-gray-100 text-gray-900 @endif">
                 {{ __('Feeds') }}
             </a>
@@ -158,9 +161,6 @@
             </a>
             <a href="{{ route('analysis') }}" class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 @if (request()->routeIs('analysis')) bg-gray-100 text-gray-900 @endif">
                 {{ __('Analysis') }}
-            </a>
-            <a href="{{ route('songs') }}" class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-gray-900 @if (request()->routeIs('songs')) bg-gray-100 text-gray-900 @endif">
-                {{ __('Songs') }}
             </a>
         </div>
 

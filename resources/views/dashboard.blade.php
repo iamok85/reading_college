@@ -8,6 +8,9 @@
                 <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Dashboard') }}
                 </a>
+                <a href="{{ route('jobs') }}" class="hover:text-gray-900 {{ request()->routeIs('jobs') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Processing') }}
+                </a>
                 <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Previous Essays') }}
                 </a>
@@ -16,9 +19,6 @@
                 </a>
                 <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Analysis') }}
-                </a>
-                <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
-                    {{ __('Songs') }}
                 </a>
             @endauth
         </div>
@@ -43,10 +43,9 @@
                     ? $latestEssay->generated_image_paths
                     : (isset($latestEssay) ? (json_decode($latestEssay->generated_image_paths, true) ?: []) : []);
             @endphp
-        </div>
-
-        <div class="mt-8">
-            <livewire:chat/>
+            <div class="mt-8">
+                <livewire:chat/>
+            </div>
         </div>
     </div>
 </x-app-layout>

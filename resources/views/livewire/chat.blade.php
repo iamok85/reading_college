@@ -165,75 +165,6 @@
                 <span>Processing attachment…</span>
             </div>
 
-            @if ($showProgressPanels)
-                <div class="space-y-4 pb-6">
-                    @if ($showOcrPanel)
-                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
-                            <div class="text-sm font-semibold text-gray-800">OCR Text</div>
-                            @if ($ocrTextPanel)
-                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $ocrTextPanel }}</pre>
-                            @else
-                                <p class="mt-2 text-sm text-gray-500">Waiting for OCR…</p>
-                            @endif
-                        </div>
-                    @endif
-                    @if ($showOcrPanel ? $ocrTextPanel : true)
-                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
-                            <div class="text-sm font-semibold text-gray-800">Correction</div>
-                            @if ($correctionTextPanel)
-                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $correctionTextPanel }}</pre>
-                                <div class="mt-4 border-t border-gray-100 pt-4">
-                                    <div class="text-sm font-semibold text-gray-800">Generated Images</div>
-                                    @if (!empty($generatedImagePaths))
-                                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                            @foreach ($generatedImagePaths as $path)
-                                                <img class="max-h-64 w-full rounded-md border border-gray-200 object-contain" src="{{ \Illuminate\Support\Facades\Storage::url($path) }}" alt="Generated essay image">
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <p class="mt-2 text-sm text-gray-500">Waiting for images…</p>
-                                    @endif
-                                </div>
-                                <div class="mt-4 border-t border-gray-100 pt-4">
-                                    <div class="text-sm font-semibold text-gray-800">Generated Video</div>
-                                    @if ($generatedVideoPath || $generatedVideoUrl)
-                                        <video class="mt-3 w-full rounded-md border border-gray-200" controls>
-                                            <source src="{{ $generatedVideoPath ? \Illuminate\Support\Facades\Storage::url($generatedVideoPath) : $generatedVideoUrl }}" type="video/mp4">
-                                        </video>
-                                    @else
-                                        <div class="mt-3" wire:poll.5s="refreshVideoStatus">
-                                            @if ($generatedVideoError)
-                                                <p class="text-sm text-red-600">{{ $generatedVideoError }}</p>
-                                            @else
-                                                <div class="flex items-center justify-between text-xs text-gray-500">
-                                                    <span>{{ $generatedVideoStatus ? ucfirst($generatedVideoStatus) : 'Queued' }}</span>
-                                                    <span>{{ $generatedVideoProgress ?? 0 }}%</span>
-                                                </div>
-                                                <div class="mt-2 h-2 w-full rounded-full bg-gray-100">
-                                                    <div class="h-2 rounded-full bg-blue-500" style="width: {{ $generatedVideoProgress ?? 0 }}%;"></div>
-                                                </div>
-                                                <p class="mt-2 text-sm text-gray-500">Generating video…</p>
-                                            @endif
-                                        </div>
-                                    @endif
-                                </div>
-                            @else
-                                <p class="mt-2 text-sm text-gray-500">Waiting for correction…</p>
-                            @endif
-                        </div>
-                    @endif
-                    @if ($correctionTextPanel)
-                        <div class="rounded-lg border border-gray-200 bg-white p-4 text-left">
-                            <div class="text-sm font-semibold text-gray-800">Analysis</div>
-                            @if ($analysisTextPanel)
-                                <pre class="mt-2 whitespace-pre-wrap text-sm text-gray-700">{{ $analysisTextPanel }}</pre>
-                            @else
-                                <p class="mt-2 text-sm text-gray-500">Waiting for analysis…</p>
-                            @endif
-                        </div>
-                    @endif
-                </div>
-            @endif
             <div class="mt-4 flex justify-end gap-2">
                 @if ($lastEssaySubmissionId)
                     @if ($isLastEssayShared)
@@ -265,39 +196,8 @@
                     Save as PDF
                 </button>
             </div>
-</form>
+        </form>
 
-<script>
-    if (!window.__essayAfterCorrectionListener) {
-        window.__essayAfterCorrectionListener = true;
-        window.addEventListener('essay:after-correction', (event) => {
-            let payload = event.detail ?? {};
-            if (Array.isArray(payload) && payload.length > 0) {
-                payload = payload[0];
-            }
-
-            // Trigger image + video generation
-            if (window.Livewire?.dispatch) {
-                if (payload?.essayId && payload?.correctedEssay) {
-                    window.Livewire.dispatch('getEssayImagesResponse', {
-                        essayId: payload.essayId,
-                        correctedEssay: payload.correctedEssay,
-                    });
-                    window.Livewire.dispatch('getEssayVideoResponse', {
-                        essayId: payload.essayId,
-                        correctedEssay: payload.correctedEssay,
-                    });
-                }
-            }
-        });
-
-        window.addEventListener('analysis:after-images', () => {
-            if (window.Livewire?.dispatch) {
-                window.Livewire.dispatch('getEssayAnalysisResponse', {});
-            }
-        });
-    }
-</script>
         <script>
             (function () {
                 const resize = (el) => {

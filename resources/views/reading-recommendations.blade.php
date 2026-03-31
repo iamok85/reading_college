@@ -8,6 +8,9 @@
                 <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Dashboard') }}
                 </a>
+                <a href="{{ route('jobs') }}" class="hover:text-gray-900 {{ request()->routeIs('jobs') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Processing') }}
+                </a>
                 <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Previous Essays') }}
                 </a>
@@ -16,9 +19,6 @@
                 </a>
                 <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Analysis') }}
-                </a>
-                <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
-                    {{ __('Songs') }}
                 </a>
             @endauth
         </div>
@@ -48,6 +48,8 @@
                     <p class="mt-4 text-sm text-red-600">{{ $errors->first('readings') }}</p>
                 @elseif ($errors->has('credits'))
                     <p class="mt-4 text-sm text-red-600">{{ $errors->first('credits') }}</p>
+                @elseif (!empty($refreshError))
+                    <p class="mt-4 text-sm text-red-600">{{ $refreshError }}</p>
                 @endif
                 @if ($essayCount > 0)
                     <div class="mt-4 flex justify-end">
@@ -120,8 +122,8 @@
 
     <script>
         (function () {
+            const wasRefreshingOnLoad = @json(!empty($isRefreshing));
             const list = document.getElementById('reading-recommendation-list');
-            if (!list) return;
 
             const poll = () => {
                 fetch("{{ route('reading-recommendations.status', ['child_id' => $selectedChildId]) }}", {
@@ -130,6 +132,17 @@
                     .then((response) => response.ok ? response.json() : null)
                     .then((data) => {
                         if (!data || !Array.isArray(data.items)) return;
+                        if (wasRefreshingOnLoad && data.status === 'completed') {
+                            window.location.reload();
+                            return;
+                        }
+
+                        if (wasRefreshingOnLoad && data.status === 'failed') {
+                            window.location.reload();
+                            return;
+                        }
+
+                        if (!list) return;
                         data.items.forEach((item, index) => {
                             const row = list.querySelector(`[data-rec-index="${index}"]`);
                             if (!row) return;

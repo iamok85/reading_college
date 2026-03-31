@@ -9,7 +9,7 @@ use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Providers\HttpClientOptions;
-use NeuronAI\Providers\OpenAI\OpenAI;
+use App\Neuron\Providers\OpenAIProxyProvider;
 
 class ResearchAgent extends Agent
 {
@@ -31,10 +31,11 @@ class ResearchAgent extends Agent
     protected function provider(): AIProviderInterface
     {
         if (!empty($_ENV['OPENAI_API_KEY'])) {
-            return new OpenAI(
+            return new OpenAIProxyProvider(
                 $_ENV['OPENAI_API_KEY'],
-                $_ENV['OPENAI_CHAT_MODEL'] ?? 'gpt-5.2-chat-latest',
-                httpOptions: new HttpClientOptions(timeout: 60, connectTimeout: 10)
+                $_ENV['OPENAI_CHAT_MODEL'] ?? 'gpt-5.4',
+                httpOptions: new HttpClientOptions(timeout: 60, connectTimeout: 10),
+                baseUri: $_ENV['OPENAI_API_BASE'] ?? null
             );
         }
 

@@ -91,11 +91,6 @@ class User extends Authenticatable
         return $this->hasMany(ReadingRecommendation::class);
     }
 
-    public function essaySongs(): HasMany
-    {
-        return $this->hasMany(EssaySong::class);
-    }
-
     public function essayAnalyses(): HasMany
     {
         return $this->hasMany(EssayAnalysis::class);

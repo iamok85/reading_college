@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EssaySubmission extends Model
 {
@@ -21,19 +20,16 @@ class EssaySubmission extends Model
         'corrected_version',
         'analysis_text',
         'response_text',
-        'generated_video_path',
-        'video_job_id',
-        'video_status',
-        'video_progress',
-        'video_error',
-        'video_url',
+        'processing_status',
+        'processing_error',
+        'processing_completed_at',
     ];
 
     protected $casts = [
         'image_paths' => 'array',
         'generated_image_paths' => 'array',
         'uploaded_at' => 'datetime',
-        'video_progress' => 'integer',
+        'processing_completed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -44,10 +40,5 @@ class EssaySubmission extends Model
     public function child(): BelongsTo
     {
         return $this->belongsTo(Child::class);
-    }
-
-    public function song(): HasOne
-    {
-        return $this->hasOne(EssaySong::class);
     }
 }

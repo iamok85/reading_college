@@ -8,6 +8,9 @@
                 <a href="{{ route('dashboard') }}" class="hover:text-gray-900 {{ request()->routeIs('dashboard') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Dashboard') }}
                 </a>
+                <a href="{{ route('jobs') }}" class="hover:text-gray-900 {{ request()->routeIs('jobs') ? 'text-gray-900 underline' : '' }}">
+                    {{ __('Processing') }}
+                </a>
                 <a href="{{ route('previous-essays') }}" class="hover:text-gray-900 {{ request()->routeIs('previous-essays') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Previous Essays') }}
                 </a>
@@ -16,9 +19,6 @@
                 </a>
                 <a href="{{ route('analysis') }}" class="hover:text-gray-900 {{ request()->routeIs('analysis') ? 'text-gray-900 underline' : '' }}">
                     {{ __('Analysis') }}
-                </a>
-                <a href="{{ route('songs') }}" class="hover:text-gray-900 {{ request()->routeIs('songs') ? 'text-gray-900 underline' : '' }}">
-                    {{ __('Songs') }}
                 </a>
             @endauth
         </div>
@@ -119,7 +119,6 @@
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="grammar">Grammar</button>
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="corrected">Corrected</button>
                                         <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="images">Generated Images</button>
-                                        <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="video">Generated Video</button>
                                         @if ($essay->analysis_text)
                                             <button type="button" class="tab-btn rounded-md bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200" data-tab-target="analysis">Analysis</button>
                                         @endif
@@ -161,40 +160,6 @@
                                             @else
                                                 <p class="text-sm text-gray-600">No generated images yet.</p>
                                             @endif
-                                        </div>
-                                        <div data-tab-panel="video" class="hidden" data-video-panel data-essay-id="{{ $essay->id }}">
-                                            <div class="flex items-center justify-between">
-                                                <div class="text-xs font-semibold text-gray-600">Generated Video</div>
-                                                <form method="POST" action="{{ route('previous-essays.videos.regenerate', $essay->id) }}">
-                                                    @csrf
-                                                    <button type="submit" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-100">
-                                                        Refresh
-                                                    </button>
-                                                </form>
-                                            </div>
-                                            <div class="video-status mt-2">
-                                                @if ($essay->generated_video_path)
-                                                    <video class="mt-2 w-full rounded-md border border-gray-200" controls>
-                                                        <source src="{{ \Illuminate\Support\Facades\Storage::url($essay->generated_video_path) }}" type="video/mp4">
-                                                    </video>
-                                                @else
-                                                    @if ($essay->video_error)
-                                                        <p class="text-sm text-red-600">{{ $essay->video_error }}</p>
-                                                    @elseif ($essay->video_status)
-                                                        <div>
-                                                            <div class="flex items-center justify-between text-xs text-gray-500">
-                                                                <span>{{ ucfirst($essay->video_status) }}</span>
-                                                                <span>{{ $essay->video_progress ?? 0 }}%</span>
-                                                            </div>
-                                                            <div class="mt-2 h-2 w-full rounded-full bg-gray-100">
-                                                                <div class="h-2 rounded-full bg-blue-500" style="width: {{ $essay->video_progress ?? 0 }}%;"></div>
-                                                            </div>
-                                                        </div>
-                                                    @else
-                                                        <p class="text-sm text-gray-600">No generated video yet.</p>
-                                                    @endif
-                                                @endif
-                                            </div>
                                         </div>
                                         <div data-tab-panel="original">
                                             <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ $essay->ocr_text }}</pre>
@@ -248,69 +213,6 @@
                 </div>
             </div>
         </div>
-        <script>
-            (function () {
-                const poll = () => {
-                    const panels = Array.from(document.querySelectorAll('[data-video-panel]'));
-                    if (!panels.length) return;
-                    const ids = panels.map((panel) => panel.dataset.essayId).filter(Boolean);
-                    if (!ids.length) return;
-
-                    fetch("{{ route('previous-essays.video-status') }}?essay_ids=" + ids.join(','), {
-                        headers: { 'Accept': 'application/json' },
-                    })
-                        .then((response) => response.ok ? response.json() : null)
-                        .then((data) => {
-                            if (!data) return;
-                            panels.forEach((panel) => {
-                                const essayId = panel.dataset.essayId;
-                                const status = data[essayId];
-                                if (!status) return;
-
-                                const container = panel.querySelector('.video-status');
-                                if (!container) return;
-
-                                if (status.path || status.url) {
-                                    const url = status.path
-                                        ? ("{{ \Illuminate\Support\Facades\Storage::url('') }}" + status.path)
-                                        : status.url;
-                                    container.innerHTML = `
-                                        <video class="mt-2 w-full rounded-md border border-gray-200" controls>
-                                            <source src="${url}" type="video/mp4">
-                                        </video>
-                                    `;
-                                    return;
-                                }
-
-                                if (status.error) {
-                                    container.innerHTML = `<p class="text-sm text-red-600">${status.error}</p>`;
-                                    return;
-                                }
-
-                                if (status.status) {
-                                    const progress = status.progress ?? 0;
-                                    const label = status.status.charAt(0).toUpperCase() + status.status.slice(1);
-                                    container.innerHTML = `
-                                        <div>
-                                            <div class="flex items-center justify-between text-xs text-gray-500">
-                                                <span>${label}</span>
-                                                <span>${progress}%</span>
-                                            </div>
-                                            <div class="mt-2 h-2 w-full rounded-full bg-gray-100">
-                                                <div class="h-2 rounded-full bg-blue-500" style="width: ${progress}%;"></div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }
-                            });
-                        })
-                        .catch(() => {});
-                };
-
-                poll();
-                setInterval(poll, 5000);
-            })();
-        </script>
     </div>
 </x-app-layout>
 <script>

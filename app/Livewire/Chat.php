@@ -2,17 +2,16 @@
 
 namespace App\Livewire;
 
+use App\Jobs\ProcessEssaySubmissionJob;
 use App\Neuron\Events\RetrieveEssayCorrection;
 use App\Neuron\Events\RetrieveEssayAnalysis;
 use App\Neuron\Events\RetrieveEssayImages;
-use App\Neuron\Events\RetrieveEssayVideo;
 use App\Neuron\Events\RetrieveImageOcr;
 use App\Neuron\Events\RetrievePdfOcr;
 use App\Neuron\Events\RetrieveReadingRecommendations;
 use App\Neuron\Nodes\EssayCorrectionNode;
 use App\Neuron\Nodes\EssayAnalysisNode;
 use App\Neuron\Nodes\EssayImageNode;
-use App\Neuron\Nodes\EssayVideoNode;
 use App\Services\CreditService;
 use App\Neuron\Workflows\ReadingRecommendationPipeline;
 use App\Neuron\Nodes\EssayPipelineStartNode;
@@ -24,6 +23,7 @@ use App\Models\EssaySubmission;
 use App\Models\ReadingRecommendation;
 use App\Models\SharedEssay;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -65,12 +65,6 @@ class Chat extends Component
     public array $generatedImagePaths = [];
     public bool $showOcrPanel = false;
     public bool $isLastEssayShared = false;
-    public ?string $generatedVideoPath = null;
-    public ?string $generatedVideoStatus = null;
-    public ?int $generatedVideoProgress = null;
-    public ?string $generatedVideoError = null;
-    public ?string $generatedVideoUrl = null;
-
     public function render(): View
     {
         return view('livewire.chat');
@@ -113,11 +107,6 @@ class Chat extends Component
         $this->thinking = false;
         $this->generatedImagePaths = [];
         $this->showOcrPanel = false;
-        $this->generatedVideoPath = null;
-        $this->generatedVideoStatus = null;
-        $this->generatedVideoProgress = null;
-        $this->generatedVideoError = null;
-        $this->generatedVideoUrl = null;
 
         $user = auth()->user();
         $username = $user?->name ?? 'user';
@@ -154,11 +143,6 @@ class Chat extends Component
         $this->showProgressPanels = true;
         $this->showOcrPanel = false;
         $this->isLastEssayShared = false;
-        $this->generatedVideoPath = null;
-        $this->generatedVideoStatus = null;
-        $this->generatedVideoProgress = null;
-        $this->generatedVideoError = null;
-        $this->generatedVideoUrl = null;
 
         $this->validate([
             'input' => ['required_without_all:images,pdfs', 'string', 'max:5000'],
@@ -200,16 +184,50 @@ class Chat extends Component
             }
         }
 
-        $this->thinking = true;
-
-        $this->dispatch('scroll-bottom');
-
-        if ($this->showOcrPanel) {
-            $this->dispatch('getEssayOcrResponse', $composedInput);
-        } else {
-            $this->dispatch('getEssayCorrectionResponse', $composedInput);
+        $childId = (int) session('selected_child_id', 0);
+        if (!$childId) {
+            $childId = (int) auth()->user()?->children()->orderBy('id')->value('id');
+            if ($childId) {
+                session(['selected_child_id' => $childId]);
+            }
         }
+
+        $submission = EssaySubmission::create([
+            'user_id' => (int) (auth()->id() ?? 0),
+            'child_id' => $childId ?: null,
+            'image_paths' => array_values(array_merge($this->ocrImagePaths, $this->pdfPaths)),
+            'uploaded_at' => now(),
+            'ocr_text' => null,
+            'response_text' => null,
+            'processing_status' => 'queued',
+            'processing_error' => null,
+            'processing_completed_at' => null,
+        ]);
+
+        ProcessEssaySubmissionJob::dispatch(
+            (int) $submission->id,
+            $composedInput
+        );
+
+        session([
+            'active_essay_job_id' => (int) $submission->id,
+        ]);
+        session()->forget('dismissed_essay_job_id');
+
+        $this->dispatch('essay-job-started', essayId: (int) $submission->id);
+
+        $this->thinking = false;
+        $this->ocrLoading = false;
+
+        $this->images = [];
+        $this->queuedFiles = [];
+        $this->pdfs = [];
+        $this->ocrPreview = null;
+        $this->ocrImagePaths = [];
+        $this->pdfPaths = [];
         $this->input = '';
+
+        $this->redirect(route('jobs', ['child_id' => $childId ?: null]), navigate: false);
     }
 
     private function isDemoUser(string $email): bool
@@ -231,11 +249,6 @@ class Chat extends Component
         $this->showProgressPanels = false;
         $this->generatedImagePaths = [];
         $this->showOcrPanel = false;
-        $this->generatedVideoPath = null;
-        $this->generatedVideoStatus = null;
-        $this->generatedVideoProgress = null;
-        $this->generatedVideoError = null;
-        $this->generatedVideoUrl = null;
     }
 
     public function clearInput(): void
@@ -251,6 +264,18 @@ class Chat extends Component
             $composedInput = trim((string) $input);
 
             if (!empty($this->ocrImagePaths) || !empty($this->pdfPaths)) {
+                $cacheKey = $this->buildOcrCacheKey($this->ocrImagePaths, $this->pdfPaths);
+                if ($cacheKey) {
+                    $cachedText = Cache::get($cacheKey);
+                    if (is_string($cachedText) && trim($cachedText) !== '') {
+                        $this->ocrPreview = trim($cachedText);
+                        $this->ocrTextPanel = $this->ocrPreview;
+                        $composedInput = $this->ocrPreview;
+                        $this->dispatch('getEssayCorrectionResponse', $composedInput);
+                        return;
+                    }
+                }
+
                 $state = new WorkflowState([
                     'input_text' => $composedInput,
                     'image_paths' => $this->ocrImagePaths,
@@ -280,6 +305,10 @@ class Chat extends Component
                 $this->ocrPreview = trim($ocrText);
                 $this->ocrTextPanel = $this->ocrPreview;
                 $composedInput = $this->ocrPreview;
+
+                if ($cacheKey) {
+                    Cache::put($cacheKey, $this->ocrPreview, now()->addDays(30));
+                }
             }
 
             $this->dispatch('getEssayCorrectionResponse', $composedInput);
@@ -291,6 +320,28 @@ class Chat extends Component
             $this->thinking = false;
             $this->ocrLoading = false;
         }
+    }
+
+    private function buildOcrCacheKey(array $imagePaths, array $pdfPaths): ?string
+    {
+        $hashes = [];
+        foreach (array_merge($imagePaths, $pdfPaths) as $path) {
+            if (!is_string($path) || $path === '') {
+                continue;
+            }
+            $fullPath = Storage::disk('public')->path($path);
+            if (!is_file($fullPath)) {
+                continue;
+            }
+            $hashes[] = hash_file('sha256', $fullPath);
+        }
+
+        if (empty($hashes)) {
+            return null;
+        }
+
+        sort($hashes);
+        return 'ocr:' . hash('sha256', implode('|', $hashes));
     }
 
     #[On('getEssayCorrectionResponse')]
@@ -423,50 +474,6 @@ class Chat extends Component
         } catch (\Throwable $exception) {
             // Keep UI responsive even if image generation fails.
         }
-    }
-
-    #[On('getEssayVideoResponse')]
-    public function getEssayVideoResponse(int $essayId, string $correctedEssay): void
-    {
-        try {
-            $user = auth()->user();
-            if ($user) {
-                $credits = new CreditService();
-                if (! $credits->charge($user, CreditService::COST_VIDEO)) {
-                    $this->addError('credits', 'Not enough credits to generate a video (requires 20).');
-                    return;
-                }
-            }
-            $videoState = new WorkflowState([
-                'pipeline_mode' => false,
-            ]);
-            (new EssayVideoNode())(
-                new RetrieveEssayVideo($essayId, $correctedEssay),
-                $videoState
-            );
-            $submission = EssaySubmission::find($essayId);
-            $this->generatedVideoPath = $submission?->generated_video_path;
-            $this->generatedVideoStatus = $submission?->video_status;
-            $this->generatedVideoProgress = $submission?->video_progress;
-            $this->generatedVideoError = $submission?->video_error;
-            $this->generatedVideoUrl = $submission?->video_url;
-        } catch (\Throwable $exception) {
-            // Keep UI responsive even if video generation fails.
-        }
-    }
-
-    public function refreshVideoStatus(): void
-    {
-        if (!$this->lastEssaySubmissionId) {
-            return;
-        }
-
-        $submission = EssaySubmission::find($this->lastEssaySubmissionId);
-        $this->generatedVideoPath = $submission?->generated_video_path;
-        $this->generatedVideoStatus = $submission?->video_status;
-        $this->generatedVideoProgress = $submission?->video_progress;
-        $this->generatedVideoError = $submission?->video_error;
-        $this->generatedVideoUrl = $submission?->video_url;
     }
 
     public function shareLastEssay(): void

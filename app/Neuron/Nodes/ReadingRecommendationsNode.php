@@ -25,8 +25,8 @@ class ReadingRecommendationsNode extends Node
         }
 
         $prompt = "You are a kids reading coach. Based on the child's essays and profile, "
-            . "return a JSON object with a key \"items\" containing an array of 6 recommendations "
-            . "(3 books and 3 movies). For each item include: type (\"Book\" or \"Movie\"), title, "
+            . "return a JSON object with a key \"items\" containing an array of 5 recommendations "
+            . "(books and movies). For each item include: type (\"Book\" or \"Movie\"), title, "
             . "and paragraph. Each paragraph must be a funny story that teaches knowledge and has "
             . "approximately {$event->targetWords} words (+/- 15%). "
             . "Use age-appropriate vocabulary. Do not include markdown or extra keys.\n\n"
@@ -35,8 +35,8 @@ class ReadingRecommendationsNode extends Node
 
         $response = ResearchAgent::make()
             ->setInstructions(
-                'You are a kids reading coach. Return a JSON object with key "items" containing an array of 6 '
-                . 'recommendations (3 books and 3 movies). Each item includes: type ("Book" or "Movie"), title, '
+                'You are a kids reading coach. Return a JSON object with key "items" containing an array of 5 '
+                . 'recommendations (books and movies). Each item includes: type ("Book" or "Movie"), title, '
                 . 'and paragraph. Each paragraph must be a funny story that teaches knowledge and matches the target '
                 . 'word count (+/- 15%). Use age-appropriate vocabulary. Do not include markdown or extra keys.'
             )

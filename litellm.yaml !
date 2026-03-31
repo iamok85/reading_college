@@ -1,0 +1,21 @@
+model_list:
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: gpt-4o-mini
+  - model_name: gpt-5.4
+    litellm_params:
+      model: gpt-5.4
+  - model_name: gpt-image-1.5
+    litellm_params:
+      model: gpt-image-1.5
+  - model_name: sora-2
+    litellm_params:
+      model: sora-2
+
+cache:
+  type: redis
+  ttl: 3600
+  host: 127.0.0.1
+  port: 6379
+  password: null
+  db: 0

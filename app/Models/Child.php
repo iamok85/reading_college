@@ -26,11 +26,6 @@ class Child extends Model
         return $this->hasMany(EssaySubmission::class);
     }
 
-    public function essaySongs(): HasMany
-    {
-        return $this->hasMany(EssaySong::class);
-    }
-
     public function readingRecommendations(): HasMany
     {
         return $this->hasMany(ReadingRecommendation::class);

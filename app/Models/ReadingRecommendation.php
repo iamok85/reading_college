@@ -13,6 +13,8 @@ class ReadingRecommendation extends Model
         'essay_count',
         'last_submission_at',
         'items',
+        'processing_status',
+        'processing_error',
     ];
 
     protected $casts = [

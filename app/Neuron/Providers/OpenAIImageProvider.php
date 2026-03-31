@@ -37,6 +37,9 @@ class OpenAIImageProvider implements AIProviderInterface
         protected array $parameters = [],
         protected ?HttpClientOptions $httpOptions = null,
     ) {
+        if (!empty($_ENV['OPENAI_API_BASE'])) {
+            $this->baseUri = rtrim((string) $_ENV['OPENAI_API_BASE'], '/');
+        }
         $config = [
             'base_uri' => rtrim($this->baseUri, '/') . '/',
             'headers' => [

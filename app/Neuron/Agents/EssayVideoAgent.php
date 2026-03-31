@@ -54,9 +54,10 @@ class EssayVideoAgent extends Agent
         }
 
         try {
+            $base = rtrim((string) ($_ENV['OPENAI_API_BASE'] ?? 'https://api.openai.com/v1'), '/');
             $response = Http::withToken($apiKey)
                 ->timeout(30)
-                ->get('https://api.openai.com/v1/videos/' . $jobId);
+                ->get($base . '/videos/' . $jobId);
         } catch (\Throwable $exception) {
             return null;
         }

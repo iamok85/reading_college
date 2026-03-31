@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Neuron\Nodes;
 
-use App\Neuron\Agents\ResearchAgent;
+use App\Neuron\Agents\OcrAgent;
 use App\Neuron\Events\RetrieveImageOcr;
 use App\Neuron\Events\RetrievePdfOcr;
 use App\Neuron\Events\RetrieveEssayCorrection;
@@ -36,7 +36,7 @@ class ImageOcrNode extends Node
                 OpenAiLogger::log('image_ocr', $message->getContent(), null, [
                     'phase' => 'request',
                 ]);
-                $response = ResearchAgent::make()->chat($message);
+                $response = OcrAgent::make()->chat($message);
                 $value = trim((string) $response->getContent());
                 $text = $value !== '' ? $value : null;
                 OpenAiLogger::log('image_ocr', $message->getContent(), $text);

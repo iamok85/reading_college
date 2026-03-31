@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Neuron\Nodes;
 
-use App\Neuron\Agents\ResearchAgent;
+use App\Neuron\Agents\OcrAgent;
 use App\Neuron\Events\RetrievePdfOcr;
 use App\Neuron\Events\RetrieveEssayCorrection;
 use App\Support\OpenAiLogger;
@@ -33,7 +33,7 @@ class PdfOcrNode extends Node
                 OpenAiLogger::log('pdf_ocr', $message->getContent(), null, [
                     'phase' => 'request',
                 ]);
-                $response = ResearchAgent::make()->chat($message);
+                $response = OcrAgent::make()->chat($message);
                 $value = trim((string) $response->getContent());
                 $text = $value !== '' ? $value : null;
     
